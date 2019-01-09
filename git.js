@@ -27,6 +27,11 @@ class Git {
     return this.exec([ 'pull' ]);
   }
 
+  async fetch () {
+    await fser.mkdirp(fs, this.workDir);
+    return this.exec([ 'fetch' ]);
+  }
+
   async clone () {
     if (!this.remoteUrl) {
       throw new Error('Cannot clone unknown remote url');
@@ -50,6 +55,7 @@ class Git {
   async sync (branch) {
     let exists = await fser.exists(fs, path.join(this.workDir, '.git'));
     if (exists) {
+      await this.fetch();
       await this.checkout(branch);
       await this.pull();
     } else {
