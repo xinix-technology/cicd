@@ -1,0 +1,98 @@
+#!/usr/bin/env node
+
+const argv = require('minimist')(process.argv.slice(2));
+const path = require('path');
+const { Cicd } = require('..');
+const debug = require('debug')('cicd:bin');
+
+async function ls (cicd) {
+  let { stages } = await cicd.getConfig();
+
+  console.info(`
+  Stages:`);
+
+  for (let name in stages) {
+    console.info('  -', name, stages[name].detach ? '(detach)' : '');
+  }
+
+  console.info('');
+}
+
+async function run (cicd, stageName) {
+  let { stages } = await cicd.getConfig();
+
+  if (!stageName) {
+    cicd.log({ topic: 'head', message: `Running ${cicd.name} ...` });
+
+    for (let stageName in stages) {
+      await run(cicd, stageName);
+    }
+    return;
+  }
+
+  await cicd.run(stageName);
+}
+
+async function abort (cicd, stageName) {
+  let { stages } = await cicd.getConfig();
+
+  if (!stageName) {
+    cicd.log({ topic: 'head', message: `Aborting ${cicd.name} ...` });
+
+    for (let stageName in stages) {
+      await abort(cicd, stageName);
+    }
+    return;
+  }
+
+  await cicd.abort(stageName);
+}
+
+function help () {
+  console.info(`
+  CI/CD runner
+
+  Usage:
+
+  cicd   <command>
+
+  Commands:
+
+  ls                 list all stages
+  run    [<stage>]   run pipeline or stage
+  abort  [<stage>]   abort pipeline or stage
+  help               show help
+  `);
+}
+
+(async () => {
+  process.on('SIGINT', () => {
+    console.info('\nGracefully shutting down from SIGINT (Ctrl-C)');
+  });
+
+  let workDir = process.cwd();
+  let name = path.basename(workDir);
+  let cicd = new Cicd({ workDir, name });
+
+  try {
+    switch (argv._[0]) {
+      case 'ls':
+        await ls(cicd);
+        break;
+      case 'run':
+        await run(cicd, argv._[1]);
+        break;
+      case 'abort':
+        await abort(cicd, argv._[1]);
+        break;
+      default:
+        await help();
+        break;
+    }
+    console.info('\n:)\n');
+  } catch (err) {
+    console.error('\n' + err.message + '\n:(\n');
+    debug(err);
+    process.exit(err.code || -1);
+  }
+})();
