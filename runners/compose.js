@@ -34,6 +34,13 @@ class ComposeRunner {
       await compose.up({ detach });
     } finally {
       compose.removeAllListeners('log');
+      if (!detach) {
+        try {
+          await compose.down();
+        } catch (err) {
+          // noop
+        }
+      }
     }
   }
 
