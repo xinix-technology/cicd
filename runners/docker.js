@@ -11,8 +11,8 @@ class DockerRunner {
     this.stage = stage;
   }
 
-  async run () {
-    let { name, workDir, env } = this.cicd;
+  async run ({ env }) {
+    let { name, workDir } = this.cicd;
     let { name: stageName, docker_file: file } = this.stage;
 
     let docker = new Docker({ workDir, file, env, name: `${name}_cicddocker` });
@@ -31,8 +31,8 @@ class DockerRunner {
     }
   }
 
-  async abort () {
-    let { name, workDir, env } = this.cicd;
+  async abort ({ env }) {
+    let { name, workDir } = this.cicd;
     let { name: stageName, docker_file: file } = this.stage;
 
     let docker = new Docker({ workDir, file, env, name: `${name}_cicddocker` });

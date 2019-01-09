@@ -11,8 +11,8 @@ class ComposeRunner {
     this.stage = stage;
   }
 
-  async run () {
-    let { name, workDir, env } = this.cicd;
+  async run ({ env }) {
+    let { name, workDir } = this.cicd;
     let { name: stageName, detach, files } = this.stage;
 
     let compose = new Compose({ workDir, files, env });
@@ -37,8 +37,8 @@ class ComposeRunner {
     }
   }
 
-  async abort () {
-    let { name, workDir, env } = this.cicd;
+  async abort ({ env }) {
+    let { name, workDir } = this.cicd;
     let { name: stageName, detach, files } = this.stage;
 
     let compose = new Compose({ workDir, files, env });

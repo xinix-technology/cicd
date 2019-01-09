@@ -13,12 +13,35 @@ class Docker extends EventEmitter {
     this.name = name;
   }
 
-  build () {
-    return this.spawnDocker([ 'build', '-f', this.file, '-t', this.name, '.' ]);
+  async build () {
+    let params = [ 'build', '-f', this.file, '-t', this.name, '--pull', '--force-rm' ];
+
+    for (let key in this.env) {
+      params.push('--build-arg', `${key}="${this.env[key]}"`);
+    }
+
+    params.push('.');
+
+    try {
+      this.emit('log', { topic: 'info', message: 'Try building with pull newer image...' });
+      await this.spawnDocker(params);
+    } catch (err) {
+      this.emit('log', { topic: 'info', message: 'Try building without pull newer image...' });
+      params = params.filter(param => param !== '--pull');
+      await this.spawnDocker(params);
+    }
   }
 
   run () {
-    return this.spawnDocker([ 'run', '--rm', '--name', `${this.name}_1`, this.name ]);
+    let params = [ 'run', '--rm', '--name', `${this.name}_1` ];
+
+    for (let key in this.env) {
+      params.push('-e', `${key}="${this.env[key]}"`);
+    }
+
+    params.push(this.name);
+
+    return this.spawnDocker(params);
   }
 
   async rm () {

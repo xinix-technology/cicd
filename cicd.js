@@ -2,10 +2,9 @@ const { Config } = require('./config');
 const { Logger } = require('./logger');
 
 class Cicd {
-  constructor ({ workDir, name, env = {}, logger = new Logger() }) {
+  constructor ({ workDir, name, logger = new Logger() }) {
     this.workDir = workDir;
     this.name = name;
-    this.env = env;
     this.logger = logger;
     this.config = new Config({ workDir });
 
@@ -56,14 +55,14 @@ class Cicd {
     return new Runner(this, stage);
   }
 
-  async run (stageName) {
+  async run (stageName, { env }) {
     let runner = await this.getRunner(stageName);
-    await runner.run();
+    await runner.run({ env });
   }
 
-  async abort (stageName) {
+  async abort (stageName, { env }) {
     let runner = await this.getRunner(stageName);
-    await runner.abort();
+    await runner.abort({ env });
   }
 }
 

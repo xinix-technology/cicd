@@ -30,7 +30,7 @@ async function run (cicd, stageName) {
     return;
   }
 
-  await cicd.run(stageName);
+  await cicd.run(stageName, process);
 }
 
 async function abort (cicd, stageName) {
@@ -45,7 +45,7 @@ async function abort (cicd, stageName) {
     return;
   }
 
-  await cicd.abort(stageName);
+  await cicd.abort(stageName, process);
 }
 
 function help () {
