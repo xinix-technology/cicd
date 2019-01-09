@@ -1,4 +1,5 @@
 const fs = require('fs');
+const path = require('path');
 const yaml = require('js-yaml');
 const fser = require('fser');
 
@@ -27,7 +28,7 @@ class Config {
     switch (configFile) {
       case 'cicd.yml':
       case 'cicd.yaml': {
-        let { version, stages } = await this.loadYml(configFile);
+        let { version, stages } = await this.loadYml(path.join(this.workDir, configFile));
         if (!version) {
           throw new Error('Configuration must have version');
         }
