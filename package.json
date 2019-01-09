@@ -7,6 +7,10 @@
     "lint": "eslint .",
     "test": "mocha test/**"
   },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/xinix-technology/cicd.git"
+  },
   "bin": {
     "cicd": "./bin/cicd"
   },
