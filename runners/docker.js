@@ -28,6 +28,9 @@ class DockerRunner {
       await docker.run();
     } finally {
       docker.removeAllListeners('log');
+
+      await docker.rm();
+      await docker.rmi();
     }
   }
 
