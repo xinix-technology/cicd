@@ -1,16 +1,16 @@
+const { Logger } = require('./logger');
 const { spawn } = require('child_process');
 const yaml = require('js-yaml');
-const { EventEmitter } = require('events');
 const debug = require('debug')('cicd:compose');
+const debugLog = require('debug')('cicd:compose:log');
 
-class Compose extends EventEmitter {
-  constructor ({ bin = 'docker-compose', workDir, files = [], env = {} }) {
-    super();
-
+class Compose {
+  constructor ({ bin = 'docker-compose', workDir, files = [], env = {}, logger = Logger.getInstance() }) {
     this.bin = bin;
     this.workDir = workDir;
     this.files = files;
     this.env = env;
+    this.logger = logger;
   }
 
   async ps () {
@@ -20,7 +20,7 @@ class Compose extends EventEmitter {
         .replace(/\r\n/, '\n').split('\n')
         .slice(2, -1)
         .map(line => {
-          let matches = line.match(/^([^\s]+)\s+(.+)(Up|Exit ([-\d]+))\s+(.+)$/);
+          const matches = line.match(/^([^\s]+)\s+(.+)(Up|Exit ([-\d]+))\s+(.+)$/);
           return {
             name: matches[1].trim(),
             command: matches[2].trim(),
@@ -31,35 +31,35 @@ class Compose extends EventEmitter {
         });
     }
 
-    await this.spawnDockerCompose([ 'ps' ], { io: [ null, stdout, null ] });
+    await this.spawnDockerCompose(['ps'], { io: [null, stdout, null] });
 
     return procs;
   }
 
   async getConfig () {
-    let chunks = [];
+    const chunks = [];
     function stdout (chunk) {
       chunks.push(chunk);
     }
 
-    await this.spawnDockerCompose([ 'config' ], { io: [ null, stdout, null ] });
+    await this.spawnDockerCompose(['config'], { io: [null, stdout, null] });
 
     await new Promise(resolve => setTimeout(resolve));
 
-    let content = Buffer.concat(chunks).toString();
+    const content = Buffer.concat(chunks).toString();
     return yaml.safeLoad(content);
   }
 
   pull () {
-    return this.spawnDockerCompose([ 'pull' ]);
+    return this.spawnDockerCompose(['pull']);
   }
 
   build () {
-    return this.spawnDockerCompose([ 'build', '--parallel' ]);
+    return this.spawnDockerCompose(['build', '--parallel']);
   }
 
   up ({ detach = false } = {}) {
-    let args = [ 'up', '--no-color' ];
+    const args = ['up', '--no-color'];
 
     if (detach) {
       args.push('-d');
@@ -76,7 +76,7 @@ class Compose extends EventEmitter {
   }
 
   generateArgs (params) {
-    let args = [ '--no-ansi' ];
+    const args = ['--no-ansi'];
 
     this.files.forEach(file => {
       args.push('-f', file);
@@ -89,17 +89,17 @@ class Compose extends EventEmitter {
 
   spawnDockerCompose (params, { io } = {}) {
     return new Promise((resolve, reject) => {
-      let args = this.generateArgs(params);
+      const args = this.generateArgs(params);
 
-      let env = {
+      const env = {
         PATH: process.env.PATH,
         ...this.env,
       };
-      let opts = { cwd: this.workDir, env };
+      const opts = { cwd: this.workDir, env };
 
       debug('Compose spawn: %s %o', this.bin, args);
 
-      let proc = spawn(this.bin, args, opts);
+      const proc = spawn(this.bin, args, opts);
       proc.stdout.on('data', chunk => {
         if (io && io[1]) {
           return io[1](chunk);
@@ -110,8 +110,8 @@ class Compose extends EventEmitter {
           .map(line => line.trim())
           .slice(0, -1)
           .forEach(message => {
-            debug('out|', message);
-            this.emit('log', { topic: 'info', message });
+            debugLog('out|', message);
+            this.logger.log({ topic: 'info', message });
           });
       });
 
@@ -125,8 +125,8 @@ class Compose extends EventEmitter {
           .map(line => line.trim())
           .slice(0, -1)
           .forEach(message => {
-            debug('err|', message);
-            this.emit('log', { topic: 'warn', message });
+            debugLog('err|', message);
+            this.logger.log({ topic: 'warn', message });
           });
       });
 
@@ -136,7 +136,7 @@ class Compose extends EventEmitter {
 
       proc.on('close', (code, signal) => {
         if (code) {
-          let err = new Error(`Child process spawn error code: ${code} for parameters ${JSON.stringify(params)}`);
+          const err = new Error(`Child process spawn error code: ${code} for parameters ${JSON.stringify(params)}`);
           err.code = code;
           err.signal = signal;
           return reject(err);

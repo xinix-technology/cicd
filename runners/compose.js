@@ -1,39 +1,35 @@
 
-const { Compose } = require('../compose');
+const { Compose, Logger } = require('..');
 
 class ComposeRunner {
   static test (stage) {
-    return Boolean(stage.files && stage.files.length);
+    return Boolean(stage.options && stage.options.files && stage.options.files.length);
   }
 
-  constructor (cicd, stage) {
-    this.cicd = cicd;
+  constructor (stage, options = {}) {
     this.stage = stage;
+    this.Compose = options.Compose || Compose;
   }
 
-  async run ({ env }) {
-    let { name, workDir } = this.cicd;
-    let { name: stageName, detach, files } = this.stage;
+  async run ({ env, logger = Logger.getInstance() }) {
+    const { workDir, canonicalName, detach, files } = this.stage;
 
-    let compose = new Compose({ workDir, files, env });
-    compose.on('log', log => this.cicd.log(log));
-
+    const compose = new this.Compose({ workDir, files, env, logger });
     try {
       try {
-        this.cicd.log({ topic: 'head', message: `Preparing ${name}:${stageName} ...` });
+        logger.log({ topic: 'head', message: `Preparing ${canonicalName} ...` });
 
         await compose.pull();
       } catch (err) {
-        this.cicd.log({ topic: 'error', message: 'Compose image pull failed' });
+        logger.log({ topic: 'error', message: 'Compose image pull failed' });
       }
 
       await compose.build();
 
-      this.cicd.log({ topic: 'head', message: `Running ${name}:${stageName} ...` });
+      logger.log({ topic: 'head', message: `Running ${canonicalName} ...` });
 
       await compose.up({ detach });
     } finally {
-      compose.removeAllListeners('log');
       if (!detach) {
         try {
           await compose.down();
@@ -44,20 +40,15 @@ class ComposeRunner {
     }
   }
 
-  async abort ({ env }) {
-    let { name, workDir } = this.cicd;
-    let { name: stageName, detach, files } = this.stage;
+  async abort ({ env, logger = Logger.getInstance() }) {
+    const { canonicalName, workDir, detach, files } = this.stage;
 
-    let compose = new Compose({ workDir, files, env });
-    compose.on('log', log => this.cicd.log(log));
-
+    const compose = new this.Compose({ workDir, files, env, logger });
     try {
-      this.cicd.log({ topic: 'head', message: `Aborting ${name}:${stageName} ...` });
+      logger.log({ topic: 'head', message: `Aborting ${canonicalName} ...` });
       await compose.down({ detach });
     } catch (err) {
-      this.cicd.log({ topic: 'error', message: `Abort failed caused by: ${err}` });
-    } finally {
-      compose.removeAllListeners('log');
+      logger.log({ topic: 'error', message: `Abort failed caused by: ${err}` });
     }
   }
 }

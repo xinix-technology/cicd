@@ -1,8 +1,9 @@
+const { Registry } = require('./registry');
+const { Pipeline } = require('./pipeline');
+const { Stage } = require('./stage');
+const { Logger } = require('./logger');
 const { Git } = require('./git');
 const { Compose } = require('./compose');
-const { Config } = require('./config');
-const { Cicd } = require('./cicd');
-const { Logger } = require('./logger');
 const { Docker } = require('./docker');
 
-module.exports = { Cicd, Compose, Git, Config, Logger, Docker };
+module.exports = { Registry, Pipeline, Stage, Logger, Compose, Git, Docker };

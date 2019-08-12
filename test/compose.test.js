@@ -1,26 +1,15 @@
-const { Compose } = require('../compose');
+const { Compose } = require('..');
 const path = require('path');
 const assert = require('assert');
 const fser = require('fser');
 const fs = require('fs');
+const debug = require('debug')('cicd:test:compose');
 
-describe.skip('Lib: Compose', () => {
-  let workDir = path.join(process.cwd(), 'working-test');
+describe.skip('Compose', () => {
+  const workDir = path.join(process.cwd(), 'working-test');
 
   before(async () => {
     await fser.mkdirp(fs, workDir);
-
-    await fser.writeFile(fs, path.join(workDir, 'cicd.yml'), `
-version: "1"
-stages:
-  first:
-    files:
-      - docker-compose.first.yml
-  detach:
-    detach: true
-    files:
-      - docker-compose.detach.yml
-    `);
 
     await fser.writeFile(fs, path.join(workDir, 'docker-compose.first.yml'), `
 version: "3"
@@ -28,7 +17,7 @@ services:
   one:
     image: alpine
     environment:
-      - SECRET
+      - FOO
     command: [ "env" ]
     `);
 
@@ -47,120 +36,91 @@ services:
 
   describe('#getConfig()', () => {
     it('get config', async () => {
-      let compose = new Compose({ workDir, files: ['docker-compose.first.yml'] });
+      const compose = new Compose({ workDir, files: ['docker-compose.first.yml'] });
 
-      try {
-        let config = await compose.getConfig();
-        assert.strictEqual(config.version, '3.0');
-        assert(config.services);
-      } finally {
-        compose.removeAllListeners('log');
-      }
+      const config = await compose.getConfig();
+      assert.strictEqual(config.version, '3.0');
+      assert(config.services);
     });
   });
 
   describe('#pull()', () => {
     it('pull image', async () => {
-      let compose = new Compose({ workDir, files: ['docker-compose.first.yml'] });
-
-      try {
-        let pulled = false;
-
-        compose.addListener('log', log => {
-          if (log.message.match(/^Pulling\s.+\sdone$/)) {
-            pulled = true;
+      const logger = {
+        log ({ message }) {
+          if (message.match(/^Pulling\s.+\sdone$/)) {
+            this.pulled = true;
           }
-        });
+        },
+      };
 
-        await compose.pull();
-
-        assert(pulled);
-      } finally {
-        compose.removeAllListeners('log');
-      }
+      const compose = new Compose({ workDir, files: ['docker-compose.first.yml'], logger });
+      await compose.pull();
+      assert(logger.pulled);
     }).timeout(10000);
   });
 
   describe('#build()', () => {
     it('skip if uses an image', async () => {
-      let compose = new Compose({ workDir, files: ['docker-compose.first.yml'] });
-
-      try {
-        let imageSkipped = false;
-
-        compose.addListener('log', log => {
-          if (log.message.match(/uses an image, skipping$/)) {
-            imageSkipped = true;
+      const logger = {
+        log ({ message }) {
+          if (message.match(/uses an image, skipping$/)) {
+            this.imageSkipped = true;
           }
-        });
+        },
+      };
 
-        await compose.build();
+      const compose = new Compose({ workDir, files: ['docker-compose.first.yml'], logger });
 
-        assert(imageSkipped);
-      } finally {
-        compose.removeAllListeners('log');
-      }
+      await compose.build();
+      assert(logger.imageSkipped);
     });
   });
 
   describe('#up()', () => {
     it('up image', async () => {
-      let compose = new Compose({ workDir, files: ['docker-compose.first.yml'] });
-
-      try {
-        let ran = false;
-
-        compose.addListener('log', log => {
-          if (log.message.match(/PATH=/)) {
-            ran = true;
-          }
-        });
-
-        await compose.up();
-
-        assert(ran);
-      } finally {
-        compose.removeAllListeners('log');
-        await compose.down();
-      }
-    }).timeout(10000);
-
-    it('respect environment', async () => {
-      let env = {
-        SECRET: 'foo',
+      const env = {
+        FOO: 'bar',
       };
-      let compose = new Compose({ workDir, files: ['docker-compose.first.yml'], env });
+      const logger = {
+        log ({ message }) {
+          if (message.match(/FOO=bar/)) {
+            this.found = true;
+          }
+        },
+      };
+
+      const compose = new Compose({ workDir, files: ['docker-compose.first.yml'], env, logger });
 
       try {
-        let hasSecret = false;
-
-        compose.addListener('log', log => {
-          if (log.message.match(/SECRET=foo/)) {
-            hasSecret = true;
-          }
-        });
-
         await compose.up();
-
-        assert(hasSecret);
       } finally {
-        compose.removeAllListeners('log');
         await compose.down();
       }
+      assert(logger.found);
     }).timeout(10000);
 
     it('detach run', async () => {
-      let compose = new Compose({ workDir, files: ['docker-compose.detach.yml'] });
+      const logger = {
+        log ({ message }) {
+          if (message.match(/FOO=bar/)) {
+            this.found = true;
+          }
+        },
+      };
+
+      const compose = new Compose({ workDir, files: ['docker-compose.detach.yml'], logger });
 
       try {
         await compose.up({ detach: true });
-
-        let procs = await compose.ps();
-
+        const procs = await compose.ps();
         assert(procs.length !== 0);
       } finally {
-        compose.removeAllListeners('log');
-        await compose.down();
+        try {
+          await compose.down();
+        } catch (err) {
+          debug(err);
+        }
       }
     }).timeout(20000);
   });

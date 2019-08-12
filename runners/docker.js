@@ -1,54 +1,62 @@
 
-const { Docker } = require('../docker');
+const { Docker, Logger } = require('..');
 
 class DockerRunner {
   static test (stage) {
-    return Boolean(stage.docker_file);
+    return Boolean(stage.options && stage.options.dockerfile);
   }
 
-  constructor (cicd, stage) {
-    this.cicd = cicd;
+  constructor (stage, options = {}) {
     this.stage = stage;
+    this.Docker = options.Docker || Docker;
   }
 
-  async run ({ env }) {
-    let { name, workDir } = this.cicd;
-    let { name: stageName, docker_file: file } = this.stage;
+  async run ({ env, logger = Logger.getInstance() }) {
+    const { workDir, canonicalName, detach, options } = this.stage;
+    const file = options.dockerfile;
+    const name = `${canonicalName.replace(':', '_')}.docker.cicd`;
 
-    let docker = new Docker({ workDir, file, env, name: `${name}_cicddocker` });
-    docker.on('log', log => this.cicd.log(log));
+    const docker = new this.Docker({ workDir, file, env, name });
 
     try {
-      this.cicd.log({ topic: 'head', message: `Building image ${name}:${stageName} ...` });
+      logger.log({ topic: 'head', message: `Building image ${canonicalName} ...` });
 
       await docker.build();
 
-      this.cicd.log({ topic: 'head', message: `Running ${name}:${stageName} ...` });
+      logger.log({ topic: 'head', message: `Running ${canonicalName} ...` });
 
       await docker.run();
     } finally {
-      docker.removeAllListeners('log');
+      if (!detach) {
+        try {
+          await docker.rm();
+        } catch (err) {
+          // noop
+        }
 
-      await docker.rm();
-      await docker.rmi();
+        try {
+          await docker.rmi();
+        } catch (err) {
+          // noop
+        }
+      }
     }
   }
 
-  async abort ({ env }) {
-    let { name, workDir } = this.cicd;
-    let { name: stageName, docker_file: file } = this.stage;
+  async abort ({ env, logger = Logger.getInstance() }) {
+    const { workDir, canonicalName, options } = this.stage;
+    const file = options.dockerfile;
+    const name = `${canonicalName.replace(':', '_')}.docker.cicd`;
 
-    let docker = new Docker({ workDir, file, env, name: `${name}_cicddocker` });
-    docker.on('log', log => this.cicd.log(log));
+    const docker = new this.Docker({ workDir, file, env, name });
 
     try {
-      this.cicd.log({ topic: 'head', message: `Aborting ${name}:${stageName} ...` });
+      logger.log({ topic: 'head', message: `Aborting ${canonicalName} ...` });
+
       await docker.rm();
       await docker.rmi();
     } catch (err) {
-      this.cicd.log({ topic: 'error', message: `Abort failed caused by: ${err}` });
-    } finally {
-      docker.removeAllListeners('log');
+      logger.log({ topic: 'error', message: `Abort failed caused by: ${err}` });
     }
   }
 }

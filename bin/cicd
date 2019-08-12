@@ -1,97 +1,92 @@
 #!/usr/bin/env node
 
 const argv = require('minimist')(process.argv.slice(2));
-const path = require('path');
-const { Cicd } = require('..');
+const { Pipeline } = require('..');
 const debug = require('debug')('cicd:bin');
 
-async function ls (cicd) {
-  let { stages } = await cicd.getConfig();
+function ls (pipeline) {
+  console.info('');
+  console.info('Stages:');
 
-  console.info(`
-  Stages:`);
-
-  for (let name in stages) {
-    console.info('  -', name, stages[name].detach ? '(detach)' : '');
+  if (pipeline.stages.length) {
+    pipeline.stages.forEach(stage => {
+      console.info(' ', stage.name, stage.options.detach ? '(detach)' : '');
+    });
+  } else {
+    console.info('  (none)');
   }
 
   console.info('');
 }
 
-async function run (cicd, stageName) {
-  let { stages } = await cicd.getConfig();
-
-  if (!stageName) {
-    cicd.log({ topic: 'head', message: `Running ${cicd.name} ...` });
-
-    for (let stageName in stages) {
-      await run(cicd, stageName);
-    }
-    return;
+async function run (pipeline, name) {
+  if (name) {
+    const stage = pipeline.getStage(name);
+    await stage.run(process);
+  } else {
+    await pipeline.run(process);
   }
-
-  await cicd.run(stageName, process);
 }
 
-async function abort (cicd, stageName) {
-  let { stages } = await cicd.getConfig();
-
-  if (!stageName) {
-    cicd.log({ topic: 'head', message: `Aborting ${cicd.name} ...` });
-
-    for (let stageName in stages) {
-      await abort(cicd, stageName);
-    }
-    return;
+async function abort (pipeline, name) {
+  if (name) {
+    const stage = pipeline.getStage(name);
+    await stage.abort(process);
+  } else {
+    await pipeline.abort(process);
   }
-
-  await cicd.abort(stageName, process);
 }
 
 function help () {
   console.info(`
-  CI/CD runner
+CI/CD Command Line Interpreter
 
-  Usage:
-
+Usage:
   cicd   <command>
 
-  Commands:
-
-  ls                 list all stages
-  run    [<stage>]   run pipeline or stage
-  abort  [<stage>]   abort pipeline or stage
-  help               show help
+Commands:
+  ls                 List all stages
+  run    [<stage>]   Run pipeline or stage
+  abort  [<stage>]   Abort pipeline or stage
+  help               Show help
   `);
 }
 
 (async () => {
   process.on('SIGINT', () => {
-    console.info('\nGracefully shutting down from SIGINT (Ctrl-C)');
+    console.info('');
+    console.info('Gracefully shutting down from SIGINT (Ctrl-C)');
   });
 
-  let workDir = process.cwd();
-  let name = path.basename(workDir);
-  let cicd = new Cicd({ workDir, name });
+  const workDir = process.cwd();
+  const pipeline = new Pipeline({ workDir });
+
+  await pipeline.configure();
+  // console.log('pipeline', pipeline)
 
   try {
     switch (argv._[0]) {
       case 'ls':
-        await ls(cicd);
+        await ls(pipeline);
         break;
       case 'run':
-        await run(cicd, argv._[1]);
+        await run(pipeline, argv._[1]);
         break;
       case 'abort':
-        await abort(cicd, argv._[1]);
+        await abort(pipeline, argv._[1]);
         break;
       default:
         await help();
         break;
     }
-    console.info('\n:)\n');
+    console.info('');
+    console.info(':)');
+    console.info('');
   } catch (err) {
-    console.error('\n' + err.message + '\n:(\n');
+    console.info('');
+    console.error(err.message);
+    console.error(':(');
+    console.info('');
     debug(err);
     process.exit(err.code || -1);
   }
