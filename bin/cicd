@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 
+const path = require('path');
 const argv = require('minimist')(process.argv.slice(2));
-const { Pipeline } = require('..');
+const { Pipeline, Git } = require('..');
 const debug = require('debug')('cicd:bin');
 
 function ls (pipeline) {
@@ -15,8 +16,18 @@ function ls (pipeline) {
   } else {
     console.info('  (none)');
   }
+}
+
+async function init ({ workDir, remoteUrl }) {
+  if (remoteUrl.indexOf(':') === -1) {
+    remoteUrl = path.resolve(remoteUrl);
+  }
 
   console.info('');
+  console.info(`Cloning remote url to ${workDir} ...`);
+  const git = new Git({ workDir, remoteUrl });
+
+  await git.clone();
 }
 
 async function run (pipeline, name) {
@@ -45,10 +56,11 @@ Usage:
   cicd   <command>
 
 Commands:
-  ls                 List all stages
-  run    [<stage>]   Run pipeline or stage
-  abort  [<stage>]   Abort pipeline or stage
-  help               Show help
+  init   <remoteUrl>  Initialize new project from git repository remote url
+  ls                  List all stages
+  run    [<stage>]    Run pipeline or stage
+  abort  [<stage>]    Abort pipeline or stage
+  help                Show help
   `);
 }
 
@@ -58,27 +70,37 @@ Commands:
     console.info('Gracefully shutting down from SIGINT (Ctrl-C)');
   });
 
-  const workDir = process.cwd();
-  const pipeline = new Pipeline({ workDir });
-
-  await pipeline.configure();
-  // console.log('pipeline', pipeline)
-
   try {
-    switch (argv._[0]) {
-      case 'ls':
-        await ls(pipeline);
-        break;
-      case 'run':
-        await run(pipeline, argv._[1]);
-        break;
-      case 'abort':
-        await abort(pipeline, argv._[1]);
-        break;
-      default:
-        await help();
-        break;
+    if (argv._[0] === 'init') {
+      if (!argv._[1]) {
+        throw new Error('Remote url not found!');
+      }
+
+      const workDir = path.resolve(argv._[2]) || process.cwd();
+      const remoteUrl = argv._[1];
+
+      await init ({ workDir, remoteUrl });
+    } else if (['ls', 'run', 'abort'].indexOf(argv._[0]) === -1) {
+      await help();
+    } else {
+      const workDir = process.cwd();
+      const pipeline = new Pipeline({ workDir });
+
+      await pipeline.configure();
+
+      switch (argv._[0]) {
+        case 'ls':
+          await ls(pipeline);
+          break;
+        case 'run':
+          await run(pipeline, argv._[1]);
+          break;
+        case 'abort':
+          await abort(pipeline, argv._[1]);
+          break;
+      }
     }
+
     console.info('');
     console.info(':)');
     console.info('');

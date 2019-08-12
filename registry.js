@@ -1,4 +1,4 @@
-// const debug = require('debug')('cicd:registry');
+const debug = require('debug')('cicd:registry');
 
 let instance;
 
@@ -12,7 +12,7 @@ class Registry {
       instance.addRunnerAdapter(require('./runners/compose'));
       instance.addRunnerAdapter(require('./runners/docker'));
 
-      instance.addConfigurator(require('./configurators/default')());
+      instance.addConfigurator(require('./configurators/cicd')());
       instance.addConfigurator(require('./configurators/compose')());
       instance.addConfigurator(require('./configurators/docker')());
     }
@@ -65,6 +65,7 @@ class Registry {
 
   async configure (pipeline) {
     for (const configure of this.configurators) {
+      debug(`Trying to configure using configurator:${configure.name || 'undefined'}`);
       const config = await configure(pipeline);
       if (config) {
         return config;

@@ -7,7 +7,7 @@ const FILES = [
 ];
 
 module.exports = function () {
-  return async ({ workDir }) => {
+  return async function compose ({ workDir }) {
     const files = await fser.readdir(fs, workDir);
     const configFile = FILES.find(f => files.includes(f));
     if (!configFile) {

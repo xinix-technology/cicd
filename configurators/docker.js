@@ -6,8 +6,8 @@ const FILES = [
   'Dockerfile',
 ];
 
-module.exports = function () {
-  return async ({ workDir }) => {
+module.exports = function docker () {
+  return async function docker ({ workDir }) {
     const files = await fser.readdir(fs, workDir);
     const configFile = FILES.find(f => files.includes(f));
     if (!configFile) {
@@ -25,3 +25,5 @@ module.exports = function () {
     };
   };
 };
+
+module.exports.name = 'docker';
