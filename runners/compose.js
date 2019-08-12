@@ -12,7 +12,8 @@ class ComposeRunner {
   }
 
   async run ({ env, logger = Logger.getInstance() }) {
-    const { workDir, canonicalName, detach, files } = this.stage;
+    const { workDir, canonicalName, detach } = this.stage;
+    const { files } = this.stage.options;
 
     const compose = new this.Compose({ workDir, files, env, logger });
     try {
@@ -41,7 +42,8 @@ class ComposeRunner {
   }
 
   async abort ({ env, logger = Logger.getInstance() }) {
-    const { canonicalName, workDir, detach, files } = this.stage;
+    const { canonicalName, workDir, detach } = this.stage;
+    const { files } = this.stage.options;
 
     const compose = new this.Compose({ workDir, files, env, logger });
     try {
@@ -50,6 +52,13 @@ class ComposeRunner {
     } catch (err) {
       logger.log({ topic: 'error', message: `Abort failed caused by: ${err}` });
     }
+  }
+
+  dump () {
+    return {
+      detach: !!this.stage.options.detach,
+      files: this.stage.options.files,
+    };
   }
 }
 

@@ -12,8 +12,8 @@ class DockerRunner {
   }
 
   async run ({ env, logger = Logger.getInstance() }) {
-    const { workDir, canonicalName, detach, options } = this.stage;
-    const file = options.dockerfile;
+    const { workDir, canonicalName, detach } = this.stage;
+    const { dockerfile: file } = this.stage.options;
     const name = `${canonicalName.replace(':', '_')}.docker.cicd`;
 
     const docker = new this.Docker({ workDir, file, env, name });
@@ -44,8 +44,8 @@ class DockerRunner {
   }
 
   async abort ({ env, logger = Logger.getInstance() }) {
-    const { workDir, canonicalName, options } = this.stage;
-    const file = options.dockerfile;
+    const { workDir, canonicalName } = this.stage;
+    const { dockerfile: file } = this.stage.options;
     const name = `${canonicalName.replace(':', '_')}.docker.cicd`;
 
     const docker = new this.Docker({ workDir, file, env, name });
@@ -58,6 +58,13 @@ class DockerRunner {
     } catch (err) {
       logger.log({ topic: 'error', message: `Abort failed caused by: ${err}` });
     }
+  }
+
+  dump () {
+    return {
+      detach: !!this.stage.options.detach,
+      dockerfile: this.stage.options.dockerfile,
+    };
   }
 }
 

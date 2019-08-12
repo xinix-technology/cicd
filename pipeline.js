@@ -2,6 +2,7 @@ const { Stage } = require('./stage');
 const { Logger } = require('./logger');
 const { Registry } = require('./registry');
 const path = require('path');
+const yaml = require('js-yaml');
 // const debug = require('debug')('cicd:pipeline');
 
 class Pipeline {
@@ -46,14 +47,29 @@ class Pipeline {
   }
 
   getStage (name) {
-    if (!this.configured) {
-      throw new Error('Not configured yet');
-    }
+    this.assertConfigure();
 
     return this.stages.find(stage => stage.name === name);
   }
 
+  dump () {
+    this.assertConfigure();
+
+    const config = {
+      version: Registry.CURRENT_VERSION,
+    };
+
+    this.stages.forEach(stage => {
+      const stages = config.stages = config.stages || {};
+      stages[stage.name] = stage.dump();
+    });
+
+    return yaml.dump(config);
+  }
+
   async run ({ env }) {
+    this.assertConfigure();
+
     this.logger.log({ topic: 'head', message: `Running ${this.name} ...` });
 
     for (const stage of this.stages) {
@@ -62,10 +78,18 @@ class Pipeline {
   }
 
   async abort ({ env }) {
+    this.assertConfigure();
+
     this.logger.log({ topic: 'head', message: `Aborting ${this.name} ...` });
 
     for (const stage of this.stages) {
       await stage.abort({ env });
+    }
+  }
+
+  assertConfigure () {
+    if (!this.configured) {
+      throw new Error('Not configured yet');
     }
   }
 }

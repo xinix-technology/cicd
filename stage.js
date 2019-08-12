@@ -14,6 +14,10 @@ class Stage {
     return this.pipeline.workDir;
   }
 
+  get detach () {
+    return !!this.options.detach;
+  }
+
   get runner () {
     if (!this._runner) {
       this._runner = Registry.getInstance().createRunner(this);
@@ -28,6 +32,10 @@ class Stage {
 
   async abort ({ env }) {
     await this.runner.abort({ env });
+  }
+
+  dump () {
+    return this.runner.dump();
   }
 }
 

@@ -12,7 +12,7 @@ describe('Registry', () => {
 
     it('has default runner adapters', () => {
       const registry = Registry.getInstance();
-      assert.strictEqual(registry.runners.length, 2);
+      assert.strictEqual(registry.runners.length, 3);
     });
 
     it('has default configurators', () => {

@@ -10,6 +10,7 @@ class Registry {
       instance = new Registry();
 
       instance.addRunnerAdapter(require('./runners/compose'));
+      instance.addRunnerAdapter(require('./runners/build'));
       instance.addRunnerAdapter(require('./runners/docker'));
 
       instance.addConfigurator(require('./configurators/cicd')());

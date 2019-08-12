@@ -1,4 +1,5 @@
 const { sprintf } = require('sprintf-js');
+const colors = require('colors');
 
 let instance;
 
@@ -14,14 +15,16 @@ class Logger {
   log ({ topic, message }) {
     if (topic === 'head') {
       console.info('');
-      console.info(sprintf('---> %s', message));
+      console.info(colors.bold(sprintf('-----> %s', message)));
       return;
     }
 
     if (topic === 'error') {
-      console.error(sprintf('%5s | %s', topic.toUpperCase(), message));
+      console.error(sprintf('%5s | %s', colors.red(topic.toUpperCase()), message));
+    } else if (topic === 'warn') {
+      console.info(sprintf('%5s | %s', colors.yellow(topic.toUpperCase()), message));
     } else {
-      console.info(sprintf('%5s | %s', topic.toUpperCase(), message));
+      console.info(sprintf('%5s | %s', colors.green(topic.toUpperCase()), message));
     }
 
     // if (topic === 'head') {

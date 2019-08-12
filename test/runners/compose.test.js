@@ -43,6 +43,7 @@ describe('runners:ComposeRunner', () => {
       const stage = {
         name: 'bar',
         canonicalName: 'foo:bar',
+        options: {},
       };
       const runner = new ComposeRunner(stage, { Compose });
 
@@ -59,6 +60,7 @@ describe('runners:ComposeRunner', () => {
       const stage = {
         name: 'bar',
         canonicalName: 'foo:bar',
+        options: {},
       };
       const runner = new ComposeRunner(stage, { Compose });
 

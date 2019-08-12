@@ -10,11 +10,15 @@ Runner should implement this:
 
 TBD
 
-### run({ env, logger })
+### async run({ env, logger })
 
 TBD
 
-### abort({ env, logger })
+### async abort({ env, logger })
+
+TBD
+
+### dump()
 
 TBD
 

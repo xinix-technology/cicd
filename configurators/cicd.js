@@ -17,6 +17,10 @@ module.exports = function () {
     }
 
     const config = await loadYml(path.join(workDir, configFile));
+    if (!config) {
+      return;
+    }
+
     if (!config.version) {
       throw new Error('CICD configuration must have version');
     }
