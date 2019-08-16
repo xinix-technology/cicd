@@ -15,7 +15,7 @@ class BuildRunner {
     const { workDir, canonicalName } = this.stage;
     const { dockerfile: file, tag } = this.stage.options;
 
-    const docker = new this.Docker({ workDir, file, env, name: tag });
+    const docker = new this.Docker({ workDir, file, env, name: tag, logger });
 
     logger.log({ topic: 'head', message: `Building image ${canonicalName} with tag "${tag}" ...` });
 

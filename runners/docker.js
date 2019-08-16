@@ -16,7 +16,7 @@ class DockerRunner {
     const { dockerfile: file } = this.stage.options;
     const name = `${canonicalName.replace(':', '_')}.docker.cicd`;
 
-    const docker = new this.Docker({ workDir, file, env, name });
+    const docker = new this.Docker({ workDir, file, env, name, logger });
 
     try {
       logger.log({ topic: 'head', message: `Building image ${canonicalName} ...` });
@@ -48,7 +48,7 @@ class DockerRunner {
     const { dockerfile: file } = this.stage.options;
     const name = `${canonicalName.replace(':', '_')}.docker.cicd`;
 
-    const docker = new this.Docker({ workDir, file, env, name });
+    const docker = new this.Docker({ workDir, file, env, name, logger });
 
     try {
       logger.log({ topic: 'head', message: `Aborting ${canonicalName} ...` });
