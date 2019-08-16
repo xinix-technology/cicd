@@ -1,4 +1,6 @@
 const { Registry } = require('./registry');
+const { Logger } = require('./logger');
+
 class Stage {
   constructor ({ name, pipeline, ...options }) {
     this.name = name;
@@ -26,12 +28,12 @@ class Stage {
     return this._runner;
   }
 
-  async run ({ env }) {
-    await this.runner.run({ env });
+  async run ({ env, logger = Logger.getInstance() }) {
+    await this.runner.run({ env, logger });
   }
 
-  async abort ({ env }) {
-    await this.runner.abort({ env });
+  async abort ({ env, logger = Logger.getInstance() }) {
+    await this.runner.abort({ env, logger });
   }
 
   dump () {

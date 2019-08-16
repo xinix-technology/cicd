@@ -9,7 +9,6 @@ class Pipeline {
   constructor ({
     workDir,
     name,
-    logger = new Logger(),
   } = {}) {
     if (!workDir) {
       throw new Error('Undefined working directory');
@@ -17,7 +16,6 @@ class Pipeline {
 
     this.workDir = workDir;
     this.name = name || path.basename(workDir);
-    this.logger = logger;
     this.stages = [];
     this.configured = false;
   }
@@ -67,23 +65,23 @@ class Pipeline {
     return yaml.dump(config);
   }
 
-  async run ({ env }) {
+  async run ({ env, logger = Logger.getInstance() }) {
     this.assertConfigure();
 
-    this.logger.log({ topic: 'head', message: `Running ${this.name} ...` });
+    logger.log({ topic: 'head', message: `Running ${this.name} ...` });
 
     for (const stage of this.stages) {
-      await stage.run({ env });
+      await stage.run({ env, logger });
     }
   }
 
-  async abort ({ env }) {
+  async abort ({ env, logger = Logger.getInstance() }) {
     this.assertConfigure();
 
-    this.logger.log({ topic: 'head', message: `Aborting ${this.name} ...` });
+    logger.log({ topic: 'head', message: `Aborting ${this.name} ...` });
 
     for (const stage of this.stages) {
-      await stage.abort({ env });
+      await stage.abort({ env, logger });
     }
   }
 
