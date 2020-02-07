@@ -1,0 +1,7 @@
+version: "1"
+stages:
+  build:
+    dockerfile: ./Dockerfile
+  deploy:
+    detach: true
+    files: [ ./docker-compose.yml ]
