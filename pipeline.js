@@ -1,95 +1,120 @@
 const { Stage } = require('./stage');
-const { Logger } = require('./logger');
-const { Registry } = require('./registry');
 const path = require('path');
-const yaml = require('js-yaml');
-// const debug = require('debug')('cicd:pipeline');
+
+const CONFIG_VERSION = '1';
+const RESOLVERS = [];
 
 class Pipeline {
-  constructor ({
-    workDir,
-    name,
-  } = {}) {
-    if (!workDir) {
-      throw new Error('Undefined working directory');
-    }
-
-    this.workDir = workDir;
-    this.name = name || path.basename(workDir);
-    this.stages = [];
-    this.configured = false;
+  static get RESOLVERS () {
+    return RESOLVERS;
   }
 
-  async configure (config) {
-    if (!config) {
-      config = await Registry.getInstance().configure(this);
+  static reset (empty = false) {
+    RESOLVERS.splice(0);
+
+    if (!empty) {
+      Pipeline.addResolver(require('./resolvers/cicd')());
+      Pipeline.addResolver(require('./resolvers/compose')());
+      Pipeline.addResolver(require('./resolvers/docker')());
+    }
+  }
+
+  static addResolver (resolver) {
+    RESOLVERS.push(resolver);
+  }
+
+  static async resolve (workDir) {
+    for (const resolve of RESOLVERS) {
+      const config = await resolve(workDir);
+      const name = path.basename(workDir);
+      if (config) {
+        return new Pipeline(workDir, {
+          version: CONFIG_VERSION,
+          name,
+          ...config,
+        });
+      }
     }
 
-    const { version, stages } = config;
+    throw new Error('Failed to resolve working directory');
+  }
 
+  static validate ({ version, name, stages = {} }) {
     if (!version) {
-      throw new Error('Undefined version');
+      throw new Error('Version must be specified');
     }
+
+    if (!name) {
+      throw new Error('Name must be specified');
+    }
+
+    if (!stages || !Object.keys(stages).length) {
+      throw new Error('Stages cannot be empty');
+    }
+
+    return {
+      version,
+      name,
+      stages,
+    };
+  }
+
+  constructor (workDir, config) {
+    this.workDir = workDir;
+
+    const { version, name, stages } = Pipeline.validate(config);
+
+    this.version = version;
+    this.name = name;
+    this.stages = {};
 
     for (const name in stages) {
-      const stage = new Stage({
-        name,
+      this.stages[name] = new Stage(this, {
         ...stages[name],
-        pipeline: this,
+        name,
       });
-
-      this.stages.push(stage);
     }
-
-    this.configured = true;
-  }
-
-  getStage (name) {
-    this.assertConfigure();
-
-    return this.stages.find(stage => stage.name === name);
   }
 
   dump () {
-    this.assertConfigure();
+    const { version, name } = this;
+    const stages = {};
+    for (const name in this.stages) {
+      stages[name] = this.stages[name].dump();
+    }
 
-    const config = {
-      version: Registry.CURRENT_VERSION,
+    return {
+      version,
+      name,
+      stages,
     };
-
-    this.stages.forEach(stage => {
-      const stages = config.stages = config.stages || {};
-      stages[stage.name] = stage.dump();
-    });
-
-    return yaml.dump(config);
   }
 
-  async run ({ env, logger = Logger.getInstance() }) {
-    this.assertConfigure();
+  async run ({ env, logger = () => undefined } = {}) {
+    logger({ pipeline: this.name, level: 'head', message: `Running ${this.name} ...` });
 
-    logger.log({ topic: 'head', message: `Running ${this.name} ...` });
-
-    for (const stage of this.stages) {
-      await stage.run({ env, logger });
+    for (const name in this.stages) {
+      await this.stages[name].run({ env, logger });
     }
   }
 
-  async abort ({ env, logger = Logger.getInstance() }) {
-    this.assertConfigure();
+  async abort ({ env, logger = () => undefined } = {}) {
+    logger({ pipeline: this.name, level: 'head', message: `Aborting ${this.name} ...` });
 
-    logger.log({ topic: 'head', message: `Aborting ${this.name} ...` });
-
-    for (const stage of this.stages) {
-      await stage.abort({ env, logger });
+    for (const name in this.stages) {
+      await this.stages[name].abort({ env, logger });
     }
   }
 
-  assertConfigure () {
-    if (!this.configured) {
-      throw new Error('Not configured yet');
+  getStage (name) {
+    const stage = this.stages[name];
+    if (!stage) {
+      throw new Error('Stage not found');
     }
+    return stage;
   }
 }
+
+Pipeline.reset();
 
 module.exports = { Pipeline };

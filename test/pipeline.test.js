@@ -1,123 +1,242 @@
-const { Registry, Pipeline } = require('..');
+const { Pipeline } = require('../pipeline');
+const { Stage } = require('../stage');
 const path = require('path');
-const fs = require('fs');
 const assert = require('assert');
 
-const { mkdirp, rmrf } = require('fser');
-// const debug = require('debug')('cicd:test:pipeline');
-
 describe('Pipeline', () => {
-  const workDir = path.join(process.cwd(), 'working-test');
+  const workDir = path.join(process.cwd(), 'tmp-test');
 
-  beforeEach(async () => {
-    Registry.resetInstance();
-    await mkdirp(fs, workDir);
+  beforeEach(() => {
+    Pipeline.reset(true);
+    Stage.reset(true);
   });
 
-  afterEach(async () => {
-    Registry.resetInstance();
-    await rmrf(fs, workDir);
+  it('has default resolvers', () => {
+    Pipeline.reset();
+    Stage.reset();
+    assert.strictEqual(Pipeline.RESOLVERS.length, 3);
   });
 
-  describe('constructor', () => {
-    it('must define working directory', () => {
-      assert.doesNotThrow(() => {
-        const pipeline = new Pipeline({ workDir });
-        assert.strictEqual(pipeline.name, 'working-test');
-      });
+  describe('.addResolver()', () => {
+    it('add new resolver', () => {
+      const resolver = () => ({});
+      Pipeline.addResolver(resolver);
+      assert.strictEqual(Pipeline.RESOLVERS[Pipeline.RESOLVERS.length - 1], resolver);
+    });
+  });
+
+  describe('.validate()', () => {
+    it('validate pipeline configuration', () => {
+      assert.throws(() => {
+        Pipeline.validate({});
+      }, /Version must be specified/);
 
       assert.throws(() => {
-        const pipeline = new Pipeline();
-        assert(pipeline);
-      }, /Undefined working directory/);
+        Pipeline.validate({
+          version: '1',
+        });
+      }, /Name must be specified/);
+
+      assert.throws(() => {
+        Pipeline.validate({
+          version: '1',
+          name: 'foo',
+        });
+      }, /Stages cannot be empty/);
+
+      assert.throws(() => {
+        Pipeline.validate({
+          version: '1',
+          name: 'foo',
+          stages: {},
+        });
+      }, /Stages cannot be empty/);
+
+      Pipeline.validate({
+        version: '1',
+        name: 'foo',
+        stages: {
+          bar: {},
+        },
+      });
     });
   });
 
-  describe('#configure()', () => {
-    it('configure with object parameter', async () => {
-      const pipeline = new Pipeline({ workDir });
+  describe('.resolve()', () => {
+    it('resolve using suitable resolver', async () => {
+      Stage.addAdapter(class {
+        static get type () {
+          return 'foo';
+        }
 
-      await pipeline.configure({
-        version: '1',
-        stages: {
-          foo: {
-            files: ['compose.yml'],
-          },
-          bar: {
-            dockerfile: 'Dockerfile',
-          },
-        },
+        static test () {
+          return true;
+        }
+
+        static validate (config) {
+          return config;
+        }
       });
 
-      assert.strictEqual(pipeline.stages.length, 2);
-    });
-
-    it('configure using configurators', async () => {
-      const pipeline = new Pipeline({ workDir });
-
-      const registry = new Registry();
-      Registry.setInstance(registry);
-
-      try {
-        await pipeline.configure();
-        throw new Error('Must caught error');
-      } catch (err) {
-        if (!err.message.match(/Unable to resolve configuration/)) {
-          throw err;
-        }
-      }
-
-      registry.addConfigurator(function testConfigure () {
+      Pipeline.addResolver(workDir => {
         return {
-          version: '1',
+          name: 'foo',
           stages: {
-            foo: {
-              files: ['compose.yml'],
-            },
-            bar: {
-              dockerfile: 'Dockerfile',
-            },
+            bar: {},
           },
         };
       });
 
-      await pipeline.configure();
-      assert.strictEqual(pipeline.stages.length, 2);
+      const pipeline = await Pipeline.resolve(workDir);
+      assert(pipeline instanceof Pipeline);
     });
   });
 
-  describe('#getStage()', () => {
-    it('throw error if not configured yet', () => {
-      const pipeline = new Pipeline({ workDir });
-      assert.throws(() => {
-        pipeline.getStage();
-      }, /Not configured yet/);
-    });
+  describe('constructor', () => {
+    it('create new pipeline', () => {
+      Stage.addAdapter(class {
+        static get type () {
+          return 'foo';
+        }
 
-    it('return stage by its name', async () => {
-      const pipeline = new Pipeline({ workDir });
-      await pipeline.configure({
+        static test () {
+          return true;
+        }
+
+        static validate (config) {
+          return config;
+        }
+      });
+
+      const pipeline = new Pipeline(workDir, {
         version: '1',
+        name: 'foo',
         stages: {
-          foo: {
-            foo: 'foo',
-          },
-          bar: {
-            bar: 'bar',
-          },
+          bar: {},
         },
       });
 
-      const foo = pipeline.getStage('foo');
-      assert.strictEqual(foo.name, 'foo');
-      assert.strictEqual(foo.options.foo, 'foo');
+      assert.strictEqual(pipeline.workDir, workDir);
+      assert.strictEqual(pipeline.name, 'foo');
+      assert.strictEqual(pipeline.stages.bar.name, 'bar');
+      assert.strictEqual(pipeline.stages.bar.type, 'foo');
+    });
+  });
 
-      const bar = pipeline.getStage('bar');
-      assert.strictEqual(bar.name, 'bar');
-      assert.strictEqual(bar.options.bar, 'bar');
+  describe('#dump()', () => {
+    it('dump configuration', () => {
+      Stage.addAdapter(class {
+        static get type () {
+          return 'foo';
+        }
 
-      const baz = pipeline.getStage('baz');
-      assert.strictEqual(baz, undefined);
+        static test () {
+          return true;
+        }
+
+        static validate (config) {
+          return config;
+        }
+      });
+
+      const pipeline = new Pipeline(workDir, {
+        version: '1',
+        name: 'foo',
+        stages: {
+          bar: {},
+        },
+      });
+
+      const config = pipeline.dump();
+      assert.strictEqual(config.version, '1');
+      assert.strictEqual(config.name, 'foo');
+      assert(!config.workDir);
+    });
+  });
+
+  describe('#run()', () => {
+    it('run all stages', async () => {
+      Stage.addAdapter(class {
+        static get type () {
+          return 'foo';
+        }
+
+        static test () {
+          return true;
+        }
+
+        static validate (config) {
+          return config;
+        }
+      });
+
+      const pipeline = new Pipeline(workDir, {
+        version: '1',
+        name: 'foo',
+        stages: {
+          bar: {},
+        },
+      });
+
+      const logs = [];
+      pipeline.stages = {
+        foo: {
+          run () {
+            logs.push('foo');
+          },
+        },
+        bar: {
+          run () {
+            logs.push('bar');
+          },
+        },
+      };
+
+      await pipeline.run();
+      assert.deepStrictEqual(logs, ['foo', 'bar']);
+    });
+  });
+
+  describe('#abort()', () => {
+    it('abort all stages', async () => {
+      Stage.addAdapter(class {
+        static get type () {
+          return 'foo';
+        }
+
+        static test () {
+          return true;
+        }
+
+        static validate (config) {
+          return config;
+        }
+      });
+
+      const pipeline = new Pipeline(workDir, {
+        version: '1',
+        name: 'foo',
+        stages: {
+          bar: {},
+        },
+      });
+
+      const logs = [];
+      pipeline.stages = {
+        foo: {
+          abort () {
+            logs.push('foo');
+          },
+        },
+        bar: {
+          abort () {
+            logs.push('bar');
+          },
+        },
+      };
+
+      await pipeline.abort();
+      assert.deepStrictEqual(logs, ['foo', 'bar']);
     });
   });
 });

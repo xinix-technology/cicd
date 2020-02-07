@@ -1,125 +1,130 @@
 #!/usr/bin/env node
 
-const path = require('path');
-const argv = require('minimist')(process.argv.slice(2));
-const { Pipeline, Git } = require('..');
+const { Pipeline } = require('..');
 const debug = require('debug')('cicd:bin');
-const colors = require('colors');
+const { sprintf } = require('sprintf-js');
+const yaml = require('js-yaml');
 
-function ls (pipeline) {
+const FNS = {
+  help () {
+    const data = `
+CI/CD Command Line Interpreter
+
+Usage: cicd [OPTIONS] COMMAND
+
+Options:
+  -h, --help       Print help
+  -v, --version    Print version information
+
+Commands:
+  abort   [STAGE]  Abort pipeline (all stages) or single stage
+  dump             Dump pipeline configuration
+  help             Print help
+  ls               List pipeline stages
+  run     [STAGE]  Run pipeline (all stages) or single stage
+  version          Print version information
+    `.trim();
+    console.info(data);
+  },
+
+  version () {
+    const pkgJson = require('../package.json');
+    const data = `
+cicd version ${pkgJson.version}
+    `.trim();
+    console.info(data);
+  },
+
+  async run (pipeline, name) {
+    if (name) {
+      await pipeline.getStage(name).run({ env: process.env, logger });
+    } else {
+      await pipeline.run({ env: process.env, logger });
+    }
+  },
+
+  async abort (pipeline, name) {
+    if (name) {
+      await pipeline.getStage(name).abort({ env: process.env, logger });
+    } else {
+      await pipeline.abort({ env: process.env, logger });
+    }
+  },
+
+  ls (pipeline) {
+    const line = sprintf('%-15s %-15s %s', 'STAGE', 'TYPE', 'DETACHED');
+    console.info(line);
+    for (const name in pipeline.stages) {
+      const stage = pipeline.stages[name];
+      const line = sprintf('%-15s %-15s %s', stage.name, stage.type, stage.detach ? 'yes' : 'no');
+      console.info(line);
+    }
+  },
+
+  dump (pipeline) {
+    console.info(yaml.dump(pipeline.dump()));
+    process.exit();
+  },
+};
+
+const ALIASES = {
+  '-v': 'version',
+  '--version': 'version',
+  '-h': 'help',
+  '--help': 'help',
+};
+
+function logger (log) {
+  const { pipeline, stage = '', level, message } = log;
+  if (level !== 'head' && stage) {
+    console.info(sprintf('  --> %-5s %s', level.toUpperCase(), message));
+  } else {
+    const line = sprintf('[%-16s] %s', `${pipeline}:${stage}`, message);
+    if (level === 'warn' || level === 'error') {
+      console.error(line);
+    } else {
+      console.info(line);
+    }
+  }
+}
+
+function getFn (cmd) {
+  let fn = FNS[cmd];
+  if (!fn) {
+    cmd = ALIASES[cmd];
+    fn = FNS[cmd];
+  }
+
+  return fn;
+}
+
+const argv = process.argv.splice(2);
+
+process.on('SIGINT', () => {
   console.info('');
-  console.info(colors.bold('Stages:'));
-
-  if (pipeline.stages.length) {
-    pipeline.stages.forEach(stage => {
-      console.info(' ', stage.name, stage.options.detach ? '(detach)' : '');
-    });
-  } else {
-    console.info('  (none)');
-  }
-}
-
-async function init ({ workDir, remoteUrl }) {
-  if (remoteUrl.indexOf(':') === -1) {
-    remoteUrl = path.resolve(remoteUrl);
-  }
-
-  console.info('');
-  console.info(`Cloning remote url to ${workDir} ...`);
-  const git = new Git({ workDir, remoteUrl });
-
-  await git.clone();
-}
-
-async function run (pipeline, name) {
-  if (name) {
-    const stage = pipeline.getStage(name);
-    await stage.run(process);
-  } else {
-    await pipeline.run(process);
-  }
-}
-
-async function abort (pipeline, name) {
-  if (name) {
-    const stage = pipeline.getStage(name);
-    await stage.abort(process);
-  } else {
-    await pipeline.abort(process);
-  }
-}
-
-function dump (pipeline) {
-  const config = pipeline.dump();
-  console.info(config);
-}
-
-function help () {
-  console.info(`
-${colors.bold('CI/CD Command Line Interpreter')}
-
-${colors.bold('Usage:')}
-  cicd   <command>
-
-${colors.bold('Commands:')}
-  init   <remoteUrl>  Initialize new project from git repository remote url
-  ls                  List all stages
-  run    [<stage>]    Run pipeline or stage
-  abort  [<stage>]    Abort pipeline or stage
-  dump                Dump pipeline configuration
-  help                Show help
-  `);
-}
+  console.info('Gracefully shutting down from SIGINT (Ctrl-C)');
+});
 
 (async () => {
-  process.on('SIGINT', () => {
-    console.info('');
-    console.info('Gracefully shutting down from SIGINT (Ctrl-C)');
-  });
-
   try {
-    if (argv._[0] === 'init') {
-      if (!argv._[1]) {
-        throw new Error('Remote url not found!');
-      }
-
-      const workDir = path.resolve(argv._[2]) || process.cwd();
-      const remoteUrl = argv._[1];
-
-      await init({ workDir, remoteUrl });
-    } else if (['ls', 'run', 'abort', 'dump'].indexOf(argv._[0]) === -1) {
-      await help();
-    } else {
-      const workDir = process.cwd();
-      const pipeline = new Pipeline({ workDir });
-
-      await pipeline.configure();
-
-      switch (argv._[0]) {
-        case 'ls':
-          await ls(pipeline);
-          break;
-        case 'run':
-          await run(pipeline, argv._[1]);
-          break;
-        case 'abort':
-          await abort(pipeline, argv._[1]);
-          break;
-        case 'dump':
-          dump(pipeline, argv._[1]);
-          process.exit();
-      }
+    const fn = getFn(argv[0]);
+    if (!fn) {
+      throw new Error('Command not found!');
     }
 
+    const pipeline = await Pipeline.resolve(process.cwd());
+    await fn(pipeline, ...argv.slice(1));
     console.info('');
-    console.info(colors.green(':)'));
-    console.info('');
+    console.info(':)');
   } catch (err) {
-    console.info('');
-    console.error(err.message);
-    console.error(colors.red(':('));
-    console.info('');
+    FNS.help();
+
+    console.error('');
+    console.error('Error:', err.message);
     debug(err);
-    process.exit(err.code || -1);
+    console.error('');
+    console.error(':(');
+
+    process.exit(1);
   }
 })();
