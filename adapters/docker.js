@@ -21,11 +21,14 @@ class DockerAdapter {
     this.stage = stage;
   }
 
+  get cannonicalName () {
+    return `${this.stage.pipeline.name}_${this.stage.name}`;
+  }
+
   async run ({ env, logger = () => undefined } = {}) {
     const { workDir, detach, dockerfile } = this.stage;
 
-    const name = `${this.stage.pipeline.name}.${this.stage.name}.docker.cicd`;
-
+    const name = this.cannonicalName;
     const docker = new Docker({ workDir, file: dockerfile, env, name, logger });
 
     try {
@@ -64,8 +67,8 @@ class DockerAdapter {
 
   async abort ({ env, logger = () => undefined } = {}) {
     const { workDir, dockerfile } = this.stage;
-    const name = `${this.stage.pipeline.name}.${this.stage.name}.docker.cicd`;
 
+    const name = this.cannonicalName;
     const docker = new Docker({ workDir, file: dockerfile, env, name, logger });
 
     try {

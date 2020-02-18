@@ -73,10 +73,13 @@ describe('adapters:ComposeAdapter', () => {
         const adapter = new Adapter(stage);
         await adapter.run();
 
-        assert.strictEqual(Compose.LOGS[0][3], 'pull');
-        assert.strictEqual(Compose.LOGS[1][3], 'build');
-        assert.strictEqual(Compose.LOGS[2][3], 'up');
-        assert.strictEqual(Compose.LOGS[3][3], 'down');
+        // assert.strictEqual(Compose.LOGS[0][3], 'pull');
+        // assert.strictEqual(Compose.LOGS[1][3], 'build');
+        // assert.strictEqual(Compose.LOGS[2][3], 'up');
+        // assert.strictEqual(Compose.LOGS[3][3], 'down');
+        assert.strictEqual(Compose.LOGS[0][3], 'build');
+        assert.strictEqual(Compose.LOGS[1][3], 'up');
+        assert.strictEqual(Compose.LOGS[2][3], 'down');
       });
     });
 

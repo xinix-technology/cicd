@@ -1,28 +1,33 @@
 #!/usr/bin/env node
 
-const { Pipeline } = require('..');
+const { Pipeline, Stage } = require('..');
 const debug = require('debug')('cicd:bin');
 const { sprintf } = require('sprintf-js');
 const yaml = require('js-yaml');
+const { Docker } = require('../lib/docker');
+const { Compose } = require('../lib/compose');
+const argv = require('minimist')(process.argv.slice(2));
 
 const FNS = {
   help () {
     const data = `
 CI/CD Command Line Interpreter
 
-Usage: cicd [OPTIONS] COMMAND
-
-Options:
-  -h, --help       Print help
-  -v, --version    Print version information
+Usage: cicd [COMMAND] [OPTIONS]
 
 Commands:
   abort   [STAGE]  Abort pipeline (all stages) or single stage
   dump             Dump pipeline configuration
   help             Print help
+  info             Print system information
   ls               List pipeline stages
   run     [STAGE]  Run pipeline (all stages) or single stage
   version          Print version information
+
+Options:
+  -h, --help       Print help
+  -p, --pull       Force pull base images
+  -v, --version    Print version information
     `.trim();
     console.info(data);
   },
@@ -65,13 +70,24 @@ cicd version ${pkgJson.version}
     console.info(yaml.dump(pipeline.dump()));
     process.exit();
   },
-};
 
-const ALIASES = {
-  '-v': 'version',
-  '--version': 'version',
-  '-h': 'help',
-  '--help': 'help',
+  async info () {
+    console.info('Installed resolvers:');
+    Pipeline.RESOLVERS.forEach(resolver => {
+      console.info('  -', resolver.name);
+    });
+
+    console.info('');
+    console.info('Installed adapters:');
+    Stage.ADAPTERS.forEach(adapter => {
+      console.info('  -', adapter.type);
+    });
+
+    console.info('');
+    console.info('Versions:');
+    console.info('  docker        ', await Docker.version());
+    console.info('  docker-compose', await Compose.version());
+  },
 };
 
 function logger (log) {
@@ -88,17 +104,19 @@ function logger (log) {
   }
 }
 
-function getFn (cmd) {
-  let fn = FNS[cmd];
-  if (!fn) {
-    cmd = ALIASES[cmd];
-    fn = FNS[cmd];
+function getFn (argv) {
+  if (argv.v || argv.version) {
+    return FNS.version;
   }
 
-  return fn;
+  if (argv.h || argv.help) {
+    return FNS.help;
+  }
+
+  return FNS[argv._[0]];
 }
 
-const argv = process.argv.splice(2);
+// const argv = process.argv.splice(2);
 
 process.on('SIGINT', () => {
   console.info('');
@@ -107,13 +125,18 @@ process.on('SIGINT', () => {
 
 (async () => {
   try {
-    const fn = getFn(argv[0]);
+    const fn = getFn(argv);
     if (!fn) {
       throw new Error('Command not found!');
     }
 
+    if (argv.p || argv.pull) {
+      Docker.reset({ pull: true });
+      Compose.reset({ pull: true });
+    }
+
     const pipeline = await Pipeline.resolve(process.cwd());
-    await fn(pipeline, ...argv.slice(1));
+    await fn(pipeline, ...argv._.slice(1));
     console.info('');
     console.info(':)');
   } catch (err) {
