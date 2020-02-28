@@ -91,12 +91,17 @@ class Stage {
     return config;
   }
 
-  async run ({ env, logger = () => undefined } = {}) {
+  async run ({ env, attach = false, logger = () => undefined } = {}) {
     const stageLogger = log => {
       log.pipeline = this.pipeline.name;
       log.stage = this.name;
       logger(log);
     };
+
+    if (attach) {
+      this.detach = false;
+    }
+
     await this.adapter.run({ env, logger: stageLogger });
   }
 

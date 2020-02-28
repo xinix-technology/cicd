@@ -35,17 +35,19 @@ class DockerAdapter {
       logger({ level: 'head', message: 'Building image ...' });
       await docker.build();
 
-      logger({ level: 'head', message: 'Running ...' });
       if (detach) {
         try {
+          logger({ level: 'head', message: 'Removing running container if exists ...' });
           await docker.rm();
         } catch (err) {
           // noop
         }
 
+        logger({ level: 'head', message: 'Running ...' });
         await docker.create();
         await docker.start();
       } else {
+        logger({ level: 'head', message: 'Running ...' });
         await docker.run();
       }
     } finally {

@@ -6,7 +6,27 @@ const { sprintf } = require('sprintf-js');
 const yaml = require('js-yaml');
 const { Docker } = require('../lib/docker');
 const { Compose } = require('../lib/compose');
-const argv = require('minimist')(process.argv.slice(2));
+const argv = require('minimist')(process.argv.slice(2), {
+  boolean: ['attach', 'help', 'pull', 'version'],
+  alias: {
+    a: 'attach',
+    h: 'help',
+    p: 'pull',
+    v: 'version',
+  },
+});
+
+process.on('SIGINT', () => {
+  console.info('');
+  console.info('Shutting down from SIGINT (Ctrl-C)');
+});
+
+const SCOPED_FNS = [
+  'abort',
+  'dump',
+  'ls',
+  'run',
+];
 
 const FNS = {
   help () {
@@ -25,6 +45,7 @@ Commands:
   version          Print version information
 
 Options:
+  -a, --attach     Force attach
   -h, --help       Print help
   -p, --pull       Force pull base images
   -v, --version    Print version information
@@ -40,15 +61,15 @@ cicd version ${pkgJson.version}
     console.info(data);
   },
 
-  async run (pipeline, name) {
+  async run ({ pipeline, args: [name], options: { attach } }) {
     if (name) {
-      await pipeline.getStage(name).run({ env: process.env, logger });
+      await pipeline.getStage(name).run({ env: process.env, logger, attach });
     } else {
-      await pipeline.run({ env: process.env, logger });
+      await pipeline.run({ env: process.env, logger, attach });
     }
   },
 
-  async abort (pipeline, name) {
+  async abort ({ pipeline, args: [name] }) {
     if (name) {
       await pipeline.getStage(name).abort({ env: process.env, logger });
     } else {
@@ -56,7 +77,7 @@ cicd version ${pkgJson.version}
     }
   },
 
-  ls (pipeline) {
+  ls ({ pipeline }) {
     const line = sprintf('%-15s %-15s %s', 'STAGE', 'TYPE', 'DETACHED');
     console.info(line);
     for (const name in pipeline.stages) {
@@ -66,7 +87,7 @@ cicd version ${pkgJson.version}
     }
   },
 
-  dump (pipeline) {
+  dump ({ pipeline }) {
     console.info(yaml.dump(pipeline.dump()));
     process.exit();
   },
@@ -105,43 +126,55 @@ function logger (log) {
 }
 
 function getFn (argv) {
-  if (argv.v || argv.version) {
+  if (argv.version) {
     return FNS.version;
   }
 
-  if (argv.h || argv.help) {
+  if (argv.help) {
     return FNS.help;
   }
 
-  return FNS[argv._[0]];
+  const name = argv._[0];
+  const fn = FNS[name];
+
+  if (fn && SCOPED_FNS.includes(name)) {
+    fn.scoped = true;
+  }
+
+  return fn;
 }
-
-// const argv = process.argv.splice(2);
-
-process.on('SIGINT', () => {
-  console.info('');
-  console.info('Gracefully shutting down from SIGINT (Ctrl-C)');
-});
 
 (async () => {
   try {
+    if (argv.pull) {
+      Docker.reset({ pull: true });
+      Compose.reset({ pull: true });
+    }
     const fn = getFn(argv);
+
     if (!fn) {
       throw new Error('Command not found!');
     }
 
-    if (argv.p || argv.pull) {
-      Docker.reset({ pull: true });
-      Compose.reset({ pull: true });
-    }
+    const args = argv._.slice(1);
 
-    const pipeline = await Pipeline.resolve(process.cwd());
-    await fn(pipeline, ...argv._.slice(1));
+    if (fn.scoped) {
+      const pipeline = await Pipeline.resolve(process.cwd());
+      await fn({
+        pipeline,
+        args,
+        options: argv,
+      });
+    } else {
+      await fn({
+        args,
+        options: argv,
+      });
+    }
     console.info('');
     console.info(':)');
   } catch (err) {
-    FNS.help();
-
+    // FNS.help();
     console.error('');
     console.error('Error:', err.message);
     debug(err);

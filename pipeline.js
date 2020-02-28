@@ -90,11 +90,11 @@ class Pipeline {
     };
   }
 
-  async run ({ env, logger = () => undefined } = {}) {
+  async run ({ env, attach = false, logger = () => undefined } = {}) {
     logger({ pipeline: this.name, level: 'head', message: `Running ${this.name} ...` });
 
     for (const name in this.stages) {
-      await this.stages[name].run({ env, logger });
+      await this.stages[name].run({ env, attach, logger });
     }
   }
 
