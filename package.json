@@ -1,6 +1,6 @@
 {
   "name": "@xinix/cicd",
-  "version": "3.0.3",
+  "version": "3.0.4",
   "description": "CI/CD",
   "main": "index.js",
   "scripts": {
@@ -17,6 +17,7 @@
   "author": "Ganesha <reekoheek@gmail.com> (http://sagara.id)",
   "license": "MIT",
   "dependencies": {
+    "colors": "^1.4.0",
     "debug": "^4.1.1",
     "fs-extra": "^8.1.0",
     "js-yaml": "^3.13.1",

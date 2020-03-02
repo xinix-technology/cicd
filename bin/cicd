@@ -6,6 +6,7 @@ const { sprintf } = require('sprintf-js');
 const yaml = require('js-yaml');
 const { Docker } = require('../lib/docker');
 const { Compose } = require('../lib/compose');
+const colors = require('colors');
 const argv = require('minimist')(process.argv.slice(2), {
   boolean: ['attach', 'help', 'pull', 'version'],
   alias: {
@@ -113,15 +114,18 @@ cicd version ${pkgJson.version}
 
 function logger (log) {
   const { pipeline, stage = '', level, message } = log;
+  let line;
   if (level !== 'head' && stage) {
-    console.info(sprintf('  --> %-5s %s', level.toUpperCase(), message));
+    const formattedLevel = colors[level === 'warn' || level === 'error' ? 'red' : 'green'](level.toUpperCase());
+    line = sprintf('  --> %-5s %s', formattedLevel, message);
   } else {
-    const line = sprintf('[%-16s] %s', `${pipeline}:${stage}`, message);
-    if (level === 'warn' || level === 'error') {
-      console.error(line);
-    } else {
-      console.info(line);
-    }
+    line = colors.yellow.bold(sprintf('[%-16s] %s', `${pipeline}:${stage}`, message));
+  }
+
+  if (level === 'warn' || level === 'error') {
+    console.error(line);
+  } else {
+    console.info(line);
   }
 }
 
