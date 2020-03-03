@@ -5,7 +5,7 @@ const FILES = [
   'docker-compose.yaml',
 ];
 
-module.exports = function () {
+module.exports = function (type = 'compose') {
   return async function compose (workDir) {
     const files = await fs.readdir(workDir);
     const configFile = FILES.find(f => files.includes(f));
@@ -16,7 +16,7 @@ module.exports = function () {
     return {
       stages: {
         main: {
-          type: 'compose',
+          type,
           detach: true,
           files: [configFile],
         },

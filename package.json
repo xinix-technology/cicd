@@ -1,6 +1,6 @@
 {
   "name": "@xinix/cicd",
-  "version": "3.0.5",
+  "version": "3.0.6",
   "description": "CI/CD",
   "main": "index.js",
   "scripts": {

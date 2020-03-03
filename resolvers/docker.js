@@ -4,7 +4,7 @@ const FILES = [
   'Dockerfile',
 ];
 
-module.exports = function () {
+module.exports = function (type = 'docker') {
   return async function docker (workDir) {
     const files = await fs.readdir(workDir);
     const configFile = FILES.find(f => files.includes(f));
@@ -15,7 +15,7 @@ module.exports = function () {
     return {
       stages: {
         main: {
-          type: 'docker',
+          type,
           detach: true,
           dockerfile: 'Dockerfile',
         },

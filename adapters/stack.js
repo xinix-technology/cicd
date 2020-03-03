@@ -11,12 +11,12 @@ class StackAdapter {
     return OPTIONS;
   }
 
-  static test ({ file }) {
-    return !!file;
+  static test ({ files }) {
+    return !!files;
   }
 
-  static validate ({ file = 'docker-compose.yml' }) {
-    return { detach: true, file };
+  static validate ({ files = ['docker-compose.yml'] }) {
+    return { detach: true, files };
   }
 
   constructor (stage) {
@@ -24,12 +24,16 @@ class StackAdapter {
   }
 
   async run ({ env, logger = () => undefined } = {}) {
-    const { file } = this.stage;
+    const { files } = this.stage;
     const name = `${this.stage.pipeline.name}`;
     // const name = `${this.stage.pipeline.name}__${this.stage.name}`;
 
     logger({ level: 'head', message: 'Deploying ...' });
-    await this.spawn(['deploy', '-c', file, name], { logger });
+
+    const params = ['deploy'];
+    files.forEach(file => params.push('-c', files));
+    params.push(name);
+    await this.spawn(params, { logger });
   }
 
   async abort ({ env, logger = () => undefined } = {}) {
