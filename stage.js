@@ -1,4 +1,4 @@
-let ADAPTERS = [];
+let ADAPTERS = {};
 
 class Stage {
   static get ADAPTERS () {
@@ -6,27 +6,24 @@ class Stage {
   }
 
   static reset (empty = false) {
-    ADAPTERS = [];
+    ADAPTERS = {};
 
     if (!empty) {
-      Stage.addAdapter(require('./adapters/stack'));
-      Stage.addAdapter(require('./adapters/compose'));
-      Stage.addAdapter(require('./adapters/docker'));
+      Stage.putAdapter('stack', require('./adapters/stack'));
+      Stage.putAdapter('compose', require('./adapters/compose'));
+      Stage.putAdapter('docker', require('./adapters/docker'));
     }
   }
 
-  static addAdapter (Adapter) {
-    if (!Adapter.type) {
-      throw new Error('Adapter must have static field with name type');
-    }
-
-    ADAPTERS.push(Adapter);
+  static putAdapter (type, Adapter) {
+    ADAPTERS[type] = Adapter;
   }
 
   static findSuitableAdapterType (config) {
-    for (const Adapter of ADAPTERS) {
+    for (const type in ADAPTERS) {
+      const Adapter = ADAPTERS[type];
       if (Adapter.test(config)) {
-        return Adapter.type;
+        return type;
       }
     }
   }
@@ -38,7 +35,7 @@ class Stage {
       throw new Error('Name must be specified');
     }
 
-    const Adapter = ADAPTERS.find(Adapter => Adapter.type === type);
+    const Adapter = ADAPTERS[type];
 
     if (!type || !Adapter) {
       throw new Error('Unknown adapter type');
@@ -60,7 +57,7 @@ class Stage {
 
     Object.assign(this, config);
 
-    const Adapter = ADAPTERS.find(Adapter => Adapter.type === this.type);
+    const Adapter = ADAPTERS[this.type];
     const adapter = new Adapter(this);
     Object.defineProperties(this, {
       pipeline: {

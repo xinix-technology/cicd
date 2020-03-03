@@ -64,11 +64,7 @@ describe('Pipeline', () => {
 
   describe('.resolve()', () => {
     it('resolve using suitable resolver', async () => {
-      Stage.addAdapter(class {
-        static get type () {
-          return 'foo';
-        }
-
+      Stage.putAdapter('foo', class {
         static test () {
           return true;
         }
@@ -94,11 +90,7 @@ describe('Pipeline', () => {
 
   describe('constructor', () => {
     it('create new pipeline', () => {
-      Stage.addAdapter(class {
-        static get type () {
-          return 'foo';
-        }
-
+      Stage.putAdapter('foo', class {
         static test () {
           return true;
         }
@@ -125,11 +117,7 @@ describe('Pipeline', () => {
 
   describe('#dump()', () => {
     it('dump configuration', () => {
-      Stage.addAdapter(class {
-        static get type () {
-          return 'foo';
-        }
-
+      Stage.putAdapter('foo', class {
         static test () {
           return true;
         }
@@ -156,11 +144,7 @@ describe('Pipeline', () => {
 
   describe('#run()', () => {
     it('run all stages', async () => {
-      Stage.addAdapter(class {
-        static get type () {
-          return 'foo';
-        }
-
+      Stage.putAdapter('foo', class {
         static test () {
           return true;
         }
@@ -199,11 +183,7 @@ describe('Pipeline', () => {
 
   describe('#abort()', () => {
     it('abort all stages', async () => {
-      Stage.addAdapter(class {
-        static get type () {
-          return 'foo';
-        }
-
+      Stage.putAdapter('foo', class {
         static test () {
           return true;
         }

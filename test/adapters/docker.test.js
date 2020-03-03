@@ -4,10 +4,6 @@ const { Docker } = require('../../lib/docker');
 
 describe('adapters:DockerAdapter', () => {
   describe('.test()', () => {
-    it('return true if config has type docker', () => {
-      assert(Adapter.test({ type: 'docker' }));
-    });
-
     it('return true if has dockerfile', () => {
       assert(Adapter.test({
         dockerfile: 'Dockerfile',
@@ -20,14 +16,6 @@ describe('adapters:DockerAdapter', () => {
   });
 
   describe('.validate()', () => {
-    it('append type if not exist yet', () => {
-      const config = Adapter.validate({
-        dockerfile: 'Dockerfile',
-      });
-
-      assert.strictEqual(config.type, 'docker');
-    });
-
     it('append dockerfile with default dockerfile if not exist yet', () => {
       const config = Adapter.validate({
         type: 'docker',

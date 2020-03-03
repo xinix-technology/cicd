@@ -4,10 +4,6 @@ const { Compose } = require('../../lib/compose');
 
 describe('adapters:ComposeAdapter', () => {
   describe('.test()', () => {
-    it('return true if config has type compose', () => {
-      assert(Adapter.test({ type: 'compose' }));
-    });
-
     it('return true if has files', () => {
       assert(Adapter.test({
         files: ['docker-compose.yml'],
@@ -20,14 +16,6 @@ describe('adapters:ComposeAdapter', () => {
   });
 
   describe('.validate()', () => {
-    it('append type if not exist yet', () => {
-      const config = Adapter.validate({
-        files: ['docker-compose.yml'],
-      });
-
-      assert.strictEqual(config.type, 'compose');
-    });
-
     it('append files with default docker-compose.yml if not exist yet', () => {
       const config = Adapter.validate({
         type: 'compose',

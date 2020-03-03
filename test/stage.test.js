@@ -6,19 +6,11 @@ describe('Stage', () => {
     Stage.reset(true);
   });
 
-  describe('.addAdapter()', () => {
+  describe('.putAdapter()', () => {
     it('add new runner adapter', () => {
-      assert.throws(() => {
-        Stage.addAdapter(class {});
-      }, /Adapter must have static field with name type/);
-
-      class Adapter {
-        static get type () {
-          return 'foo';
-        }
-      }
-      Stage.addAdapter(Adapter);
-      assert.strictEqual(Stage.ADAPTERS[Stage.ADAPTERS.length - 1], Adapter);
+      class Adapter {}
+      Stage.putAdapter('foo', Adapter);
+      assert.strictEqual(Stage.ADAPTERS.foo, Adapter);
     });
   });
 
@@ -36,11 +28,7 @@ describe('Stage', () => {
       }, /Unknown adapter type/);
 
       let validateHit = 0;
-      Stage.addAdapter(class FooAdapter {
-        static get type () {
-          return 'foo';
-        }
-
+      Stage.putAdapter('foo', class FooAdapter {
         static validate (config) {
           validateHit++;
           return config;
@@ -61,11 +49,7 @@ describe('Stage', () => {
 
   describe('constructor', () => {
     it('create new stage', () => {
-      Stage.addAdapter(class {
-        static get type () {
-          return 'foo';
-        }
-
+      Stage.putAdapter('foo', class {
         static test () {
           return true;
         }
@@ -76,9 +60,7 @@ describe('Stage', () => {
       });
 
       const pipeline = {};
-      const stage = new Stage(pipeline, {
-        name: 'foo',
-      });
+      const stage = new Stage(pipeline, { name: 'foo' });
 
       assert.strictEqual(stage.pipeline, pipeline);
       assert.strictEqual(stage.name, 'foo');
@@ -89,11 +71,7 @@ describe('Stage', () => {
 
   describe('#dump()', () => {
     it('dump configuration', () => {
-      Stage.addAdapter(class {
-        static get type () {
-          return 'foo';
-        }
-
+      Stage.putAdapter('foo', class {
         static test () {
           return true;
         }
@@ -118,11 +96,7 @@ describe('Stage', () => {
     it('run stage', async () => {
       let ran = false;
 
-      Stage.addAdapter(class {
-        static get type () {
-          return 'foo';
-        }
-
+      Stage.putAdapter('foo', class {
         static test () {
           return true;
         }
@@ -154,11 +128,7 @@ describe('Stage', () => {
     it('abort stage', async () => {
       let aborted = false;
 
-      Stage.addAdapter(class {
-        static get type () {
-          return 'foo';
-        }
-
+      Stage.putAdapter('foo', class {
         static test () {
           return true;
         }

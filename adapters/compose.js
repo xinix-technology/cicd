@@ -1,20 +1,12 @@
 const { Compose } = require('../lib/compose');
 
 class ComposeAdapter {
-  static get type () {
-    return 'compose';
-  }
-
-  static test ({ type, files }) {
-    return (type && type === ComposeAdapter.type) || !!files;
+  static test ({ files }) {
+    return !!files;
   }
 
   static validate ({ detach = false, files = ['docker-compose.yml'] }) {
-    return {
-      type: ComposeAdapter.type,
-      detach,
-      files,
-    };
+    return { detach, files };
   }
 
   constructor (stage) {

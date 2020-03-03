@@ -11,20 +11,12 @@ class StackAdapter {
     return OPTIONS;
   }
 
-  static get type () {
-    return 'stack';
-  }
-
-  static test ({ type, file }) {
-    return type && type === StackAdapter.type && file;
+  static test ({ file }) {
+    return !!file;
   }
 
   static validate ({ file = 'docker-compose.yml' }) {
-    return {
-      type: StackAdapter.type,
-      detach: true,
-      file,
-    };
+    return { detach: true, file };
   }
 
   constructor (stage) {

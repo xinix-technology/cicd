@@ -1,20 +1,12 @@
 const { Docker } = require('../lib/docker');
 
 class DockerAdapter {
-  static get type () {
-    return 'docker';
-  }
-
-  static test ({ type, dockerfile }) {
-    return (type && type === DockerAdapter.type) || !!dockerfile;
+  static test ({ dockerfile }) {
+    return !!dockerfile;
   }
 
   static validate ({ detach = false, dockerfile = 'Dockerfile' }) {
-    return {
-      type: DockerAdapter.type,
-      detach,
-      dockerfile,
-    };
+    return { detach, dockerfile };
   }
 
   constructor (stage) {
