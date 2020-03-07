@@ -176,14 +176,14 @@ function getFn (argv) {
       });
     }
     console.info('');
-    console.info(':)');
+    console.info(colors.green(':)'));
   } catch (err) {
     // FNS.help();
     console.error('');
     console.error('Error:', err.message);
     debug(err);
     console.error('');
-    console.error(':(');
+    console.error(colors.red(':('));
 
     process.exit(1);
   }

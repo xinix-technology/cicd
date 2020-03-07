@@ -1,3 +1,7 @@
 FROM alpine
 
-CMD [ "ping", "goo.gl" ]
+ARG FOO=stranger
+
+RUN echo Hello $FOO
+
+CMD ["sh", "-c", "ping \"${DOMAIN}\""]
