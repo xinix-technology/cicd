@@ -13,7 +13,7 @@ class ComposeAdapter {
     this.stage = stage;
   }
 
-  async run ({ env, logger = () => undefined } = {}) {
+  async run ({ env = {}, logger = () => undefined } = {}) {
     const { workDir, detach, files } = this.stage;
 
     const compose = new Compose({ workDir, files, env, logger });
@@ -34,6 +34,13 @@ class ComposeAdapter {
         'id.sagara.cicd.pipeline': this.stage.pipeline.name,
         'id.sagara.cicd.stage': this.stage.name,
       };
+
+      if (env.CICD_VHOST && detach) {
+        labels['id.sagara.cicd.vhost'] = '1';
+        labels['id.sagara.cicd.vhost.domain'] = env.CICD_VHOST_DOMAIN || this.stage.pipeline.name;
+        labels['id.sagara.cicd.vhost.port'] = env.CICD_VHOST_DOMAIN || '80';
+        labels['id.sagara.cicd.vhost.upstream_port'] = env.CICD_VHOST_UPSTREAM_PORT || '3000';
+      }
 
       logger({ level: 'head', message: 'Running ...' });
 

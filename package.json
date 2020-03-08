@@ -1,11 +1,11 @@
 {
   "name": "@xinix/cicd",
-  "version": "3.0.7",
+  "version": "3.0.8",
   "description": "CI/CD",
   "main": "index.js",
   "scripts": {
     "lint": "eslint .",
-    "test": "mocha test/**"
+    "test": "mocha test/** --watch-ignore tmp_test"
   },
   "repository": {
     "type": "git",

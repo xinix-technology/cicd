@@ -1,6 +1,9 @@
 const assert = require('assert');
 const Adapter = require('../../adapters/docker');
 const { Docker } = require('../../lib/docker');
+const path = require('path');
+const fs = require('fs-extra');
+const spawn = require('../../lib/spawn');
 
 describe('adapters:DockerAdapter', () => {
   describe('.test()', () => {
@@ -45,27 +48,64 @@ describe('adapters:DockerAdapter', () => {
   });
 
   describe('instance', () => {
-    beforeEach(() => {
-      Docker.reset({
-        mock: true,
-      });
+    const workDir = path.join(process.cwd(), 'tmp_test/foo');
+
+    beforeEach(async () => {
+      Docker.reset();
+      try {
+        await spawn('docker', ['rm', '-f', 'foo_bar.0']);
+      } catch (err) {
+        // noop
+      }
+      await fs.ensureDir(workDir);
+      await fs.writeFile(path.join(workDir, 'Dockerfile'), `
+FROM alpine
+
+CMD ["ping", "127.0.0.1"]
+      `.trim());
     });
 
-    afterEach(() => {
+    afterEach(async () => {
       Docker.reset();
+      try {
+        await spawn('docker', ['rm', '-f', 'foo_bar.0']);
+      } catch (err) {
+        // noop
+      }
+      await fs.remove(path.dirname(workDir));
     });
 
     describe('#run()', () => {
       it('run stage', async () => {
-        const stage = { pipeline: { name: 'foo' }, name: 'bar' };
+        const stage = { pipeline: { name: 'foo' }, name: 'bar', workDir, detach: true };
         const adapter = new Adapter(stage);
         await adapter.run();
 
-        assert.strictEqual(Docker.LOGS[0][0], 'build');
-        assert.strictEqual(Docker.LOGS[1][0], 'run');
-        assert.strictEqual(Docker.LOGS[2][0], 'rm');
-        assert.strictEqual(Docker.LOGS[3][0], 'image');
-        assert.strictEqual(Docker.LOGS[3][1], 'rm');
+        const { stdout } = await spawn('docker', ['inspect', 'foo_bar.0']);
+        const json = JSON.parse(stdout);
+
+        assert.strictEqual(json[0].Config.Labels['id.sagara.cicd.pipeline'], 'foo');
+        assert.strictEqual(json[0].Config.Labels['id.sagara.cicd.stage'], 'bar');
+        assert.strictEqual(json[0].Config.Labels['id.sagara.cicd.vhost'], undefined);
+      });
+
+      it('run stage with vhost', async () => {
+        const stage = { pipeline: { name: 'foo' }, name: 'bar', workDir, detach: true };
+        const adapter = new Adapter(stage);
+        const env = {
+          CICD_VHOST: '1',
+        };
+        await adapter.run({ env });
+
+        const { stdout } = await spawn('docker', ['inspect', 'foo_bar.0']);
+        const json = JSON.parse(stdout);
+
+        assert.strictEqual(json[0].Config.Labels['id.sagara.cicd.pipeline'], 'foo');
+        assert.strictEqual(json[0].Config.Labels['id.sagara.cicd.stage'], 'bar');
+        assert.strictEqual(json[0].Config.Labels['id.sagara.cicd.vhost'], '1');
+        assert.strictEqual(json[0].Config.Labels['id.sagara.cicd.vhost.domain'], 'foo');
+        assert.strictEqual(json[0].Config.Labels['id.sagara.cicd.vhost.port'], '80');
+        assert.strictEqual(json[0].Config.Labels['id.sagara.cicd.vhost.upstream_port'], '3000');
       });
     });
 
@@ -74,10 +114,6 @@ describe('adapters:DockerAdapter', () => {
         const stage = { pipeline: { name: 'foo' }, name: 'bar' };
         const adapter = new Adapter(stage);
         await adapter.abort();
-
-        assert.strictEqual(Docker.LOGS[0][0], 'rm');
-        assert.strictEqual(Docker.LOGS[1][0], 'image');
-        assert.strictEqual(Docker.LOGS[1][1], 'rm');
       });
     });
   });

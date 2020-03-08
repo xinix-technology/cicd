@@ -17,7 +17,7 @@ class DockerAdapter {
     return `${this.stage.pipeline.name}_${this.stage.name}`;
   }
 
-  async run ({ env, logger = () => undefined } = {}) {
+  async run ({ env = {}, logger = () => undefined } = {}) {
     const { workDir, detach, dockerfile } = this.stage;
 
     const name = this.cannonicalName;
@@ -31,6 +31,13 @@ class DockerAdapter {
         'id.sagara.cicd.pipeline': this.stage.pipeline.name,
         'id.sagara.cicd.stage': this.stage.name,
       };
+
+      if (env.CICD_VHOST && detach) {
+        labels['id.sagara.cicd.vhost'] = '1';
+        labels['id.sagara.cicd.vhost.domain'] = env.CICD_VHOST_DOMAIN || this.stage.pipeline.name;
+        labels['id.sagara.cicd.vhost.port'] = env.CICD_VHOST_DOMAIN || '80';
+        labels['id.sagara.cicd.vhost.upstream_port'] = env.CICD_VHOST_UPSTREAM_PORT || '3000';
+      }
 
       if (detach) {
         try {

@@ -1,6 +1,9 @@
 const assert = require('assert');
 const Adapter = require('../../adapters/compose');
 const { Compose } = require('../../lib/compose');
+const path = require('path');
+const fs = require('fs-extra');
+const spawn = require('../../lib/spawn');
 
 describe('adapters:ComposeAdapter', () => {
   describe('.test()', () => {
@@ -45,39 +48,66 @@ describe('adapters:ComposeAdapter', () => {
   });
 
   describe('instance', () => {
-    beforeEach(() => {
-      Compose.reset({
-        mock: true,
-      });
+    const workDir = path.join(process.cwd(), 'tmp_test/foo');
+
+    beforeEach(async () => {
+      Compose.reset();
+      await fs.ensureDir(workDir);
+      await fs.writeFile(path.join(workDir, 'docker-compose.yml'), `
+version: '3'
+services:
+  main:
+    image: alpine
+    command: ["ping", "127.0.0.1"]
+      `.trim());
+      await spawn('docker-compose', ['down', '-t', '0'], { cwd: workDir });
     });
 
-    afterEach(() => {
+    afterEach(async () => {
       Compose.reset();
+      await spawn('docker-compose', ['down', '-t', '0'], { cwd: workDir });
+      await fs.remove(path.dirname(workDir));
     });
 
     describe('#run()', () => {
       it('run stage', async () => {
-        const stage = { pipeline: { name: 'foo' }, name: 'bar' };
+        const stage = { pipeline: { name: 'foo', workDir }, name: 'bar', workDir, detach: true };
         const adapter = new Adapter(stage);
         await adapter.run();
 
-        // assert.strictEqual(Compose.LOGS[0][3], 'pull');
-        // assert.strictEqual(Compose.LOGS[1][3], 'build');
-        // assert.strictEqual(Compose.LOGS[2][3], 'up');
-        // assert.strictEqual(Compose.LOGS[3][3], 'down');
-        assert.strictEqual(Compose.LOGS[0][3], 'build');
-        assert.strictEqual(Compose.LOGS[1][3], 'up');
-        assert.strictEqual(Compose.LOGS[2][3], 'down');
-      });
+        const { stdout } = await spawn('docker', ['inspect', 'foo_main_1']);
+        const json = JSON.parse(stdout);
+        // console.log(json[0].Config);
+        assert.strictEqual(json[0].Config.Labels['id.sagara.cicd.pipeline'], 'foo');
+        assert.strictEqual(json[0].Config.Labels['id.sagara.cicd.stage'], 'bar');
+        assert.strictEqual(json[0].Config.Labels['id.sagara.cicd.vhost'], undefined);
+      }).timeout(20000);
+
+      it('run stage with vhost', async () => {
+        const stage = { pipeline: { name: 'foo', workDir }, name: 'bar', workDir, detach: true };
+        const adapter = new Adapter(stage);
+        const env = {
+          CICD_VHOST: '1',
+        };
+        await adapter.run({ env });
+
+        const { stdout } = await spawn('docker', ['inspect', 'foo_main_1']);
+        const json = JSON.parse(stdout);
+        // console.log(json[0].Config);
+        assert.strictEqual(json[0].Config.Labels['id.sagara.cicd.pipeline'], 'foo');
+        assert.strictEqual(json[0].Config.Labels['id.sagara.cicd.stage'], 'bar');
+        assert.strictEqual(json[0].Config.Labels['id.sagara.cicd.vhost'], '1');
+        assert.strictEqual(json[0].Config.Labels['id.sagara.cicd.vhost.domain'], 'foo');
+        assert.strictEqual(json[0].Config.Labels['id.sagara.cicd.vhost.port'], '80');
+        assert.strictEqual(json[0].Config.Labels['id.sagara.cicd.vhost.upstream_port'], '3000');
+      }).timeout(20000);
     });
 
     describe('#abort()', () => {
       it('abort stage', async () => {
-        const stage = { pipeline: { name: 'foo' }, name: 'bar' };
+        const stage = { pipeline: { name: 'foo', workDir }, name: 'bar', workDir, detach: true };
         const adapter = new Adapter(stage);
         await adapter.abort();
-
-        assert.strictEqual(Compose.LOGS[0][3], 'down');
       });
     });
   });
