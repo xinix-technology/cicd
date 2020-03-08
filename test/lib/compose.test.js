@@ -13,7 +13,7 @@ services:
     command: ["env"]
 `.trim();
 
-describe.skip('lib:Compose', () => {
+describe('lib:Compose', () => {
   const workDir = path.resolve(process.cwd(), 'tmp-test');
 
   beforeEach(async () => {
@@ -55,27 +55,23 @@ describe.skip('lib:Compose', () => {
   describe('#ps()', () => {
     it('return process list', async () => {
       const compose = new Compose({ workDir });
-      const procs = await compose.ps();
-      assert(Array.isArray(procs));
+      const result = await compose.ps();
+      assert(Array.isArray(result));
     }).timeout(20000);
   });
 
-  describe.skip('#getConfig()', () => {
-    it('dump configuration', () => {
-
+  describe('#pull()', () => {
+    it('pull', async () => {
+      const compose = new Compose({ workDir });
+      await compose.pull();
     }).timeout(20000);
   });
 
-  describe.skip('#pull()', () => {
-    it('pull', () => {
-
-    }).timeout(20000);
-  });
-
-  describe.skip('#build()', () => {
-    it('build', () => {
-
-    }).timeout(20000);
+  describe('#build()', () => {
+    it('build', async () => {
+      const compose = new Compose({ workDir });
+      await compose.build();
+    });
   });
 
   describe('#up()', () => {

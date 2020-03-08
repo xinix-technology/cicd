@@ -27,6 +27,11 @@ class DockerAdapter {
       logger({ level: 'head', message: 'Building image ...' });
       await docker.build();
 
+      const labels = {
+        'id.sagara.cicd.pipeline': this.stage.pipeline.name,
+        'id.sagara.cicd.stage': this.stage.name,
+      };
+
       if (detach) {
         try {
           logger({ level: 'head', message: 'Removing running container if exists ...' });
@@ -36,11 +41,11 @@ class DockerAdapter {
         }
 
         logger({ level: 'head', message: 'Running ...' });
-        await docker.create();
+        await docker.create({ labels });
         await docker.start();
       } else {
         logger({ level: 'head', message: 'Running ...' });
-        await docker.run();
+        await docker.run({ labels });
       }
     } finally {
       if (!detach) {

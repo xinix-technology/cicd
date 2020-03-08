@@ -30,9 +30,14 @@ class ComposeAdapter {
 
       await compose.build();
 
+      const labels = {
+        'id.sagara.cicd.pipeline': this.stage.pipeline.name,
+        'id.sagara.cicd.stage': this.stage.name,
+      };
+
       logger({ level: 'head', message: 'Running ...' });
 
-      await compose.up({ detach });
+      await compose.up({ detach, labels });
     } finally {
       if (!detach) {
         try {

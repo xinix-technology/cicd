@@ -1,5 +1,7 @@
 version: "1"
 stages:
-  stack:
+  main:
     type: 'stack'
-    file: ./docker-compose.yml
+    files:
+      - ping.yml
+      - pong.yml

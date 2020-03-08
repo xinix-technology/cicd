@@ -8,7 +8,7 @@ FROM alpine
 CMD [ "env" ]
 `.trim();
 
-describe.skip('lib:Docker', () => {
+describe('lib:Docker', () => {
   const workDir = path.resolve(process.cwd(), 'tmp-test');
 
   beforeEach(async () => {
@@ -43,7 +43,7 @@ describe.skip('lib:Docker', () => {
   describe('constructor', () => {
     it('set default name and file', () => {
       const docker = new Docker({ workDir });
-      assert.strictEqual(docker.name, 'tmp-test.docker.cicd');
+      assert.strictEqual(docker.name, 'tmp-test_main');
       assert.strictEqual(docker.file, 'Dockerfile');
     });
   });
@@ -84,16 +84,16 @@ describe.skip('lib:Docker', () => {
     it('remove container', async () => {
       const docker = new Docker({ workDir });
       try {
-        await docker.spawn(['rm', '-f', `${docker.name}.1`]);
+        await docker.spawn(['rm', '-f', `${docker.name}.0`]);
       } catch (err) {
         // noop
       }
 
-      await docker.spawn(['run', '--name', `${docker.name}.1`, '-d', 'alpine', 'ping', 'goo.gl']);
+      await docker.spawn(['run', '--name', `${docker.name}.0`, '-d', 'alpine', 'ping', 'goo.gl']);
 
       let found = false;
       function logger ({ message }) {
-        if (message.includes(`${docker.name}.1`)) {
+        if (message.includes(`${docker.name}.0`)) {
           found = true;
         }
       }

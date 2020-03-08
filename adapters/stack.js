@@ -1,6 +1,8 @@
 const debug = require('debug')('cicd:adapters:stack');
-const debugLog = require('debug')('cicd:adapters:stack:log');
-const { spawn } = require('child_process');
+const spawn = require('../lib/spawn');
+const yaml = require('js-yaml');
+const path = require('path');
+const fs = require('fs-extra');
 
 const OPTIONS = {
   bin: 'docker',
@@ -24,82 +26,61 @@ class StackAdapter {
   }
 
   async run ({ env, logger = () => undefined } = {}) {
-    const { files } = this.stage;
+    const { files, workDir } = this.stage;
     const name = `${this.stage.pipeline.name}`;
+    const labels = {
+      'id.sagara.cicd.pipeline': name,
+      'id.sagara.cicd.stage': this.stage.name,
+    };
     // const name = `${this.stage.pipeline.name}__${this.stage.name}`;
 
     logger({ level: 'head', message: 'Deploying ...' });
 
     const params = ['deploy'];
-    files.forEach(file => params.push('-c', files));
+
+    for (const i in files) {
+      const file = files[i];
+      const content = await fs.readFile(path.join(workDir, file));
+      const json = await yaml.load(content);
+      for (const k in json.services) {
+        const service = json.services[k];
+        const serviceLabels = service.labels = service.labels || {};
+        if (Array.isArray(serviceLabels)) {
+          for (const k in labels) { // eslint-disable-line max-depth
+            serviceLabels.push(`${k}=${labels[k]}`);
+          }
+        } else {
+          Object.assign(serviceLabels, labels);
+        }
+      }
+      const config = await yaml.dump(json);
+      const cFile = `.${file}`;
+      await fs.writeFile(path.join(workDir, cFile), config);
+      params.push('-c', cFile);
+    }
+
     params.push(name);
-    await this.spawn(params, { logger });
+    await this.spawn(params, { logger, env, workDir });
   }
 
   async abort ({ env, logger = () => undefined } = {}) {
-    // const name = `${this.stage.pipeline.name}__${this.stage.name}`;
+    const { workDir } = this.stage;
     const name = `${this.stage.pipeline.name}`;
 
     logger({ level: 'head', message: 'Removing ...' });
-    await this.spawn(['rm', name], { logger });
+    await this.spawn(['rm', name], { logger, env, workDir });
   }
 
-  spawn (params, { io, logger } = {}) {
-    return new Promise((resolve, reject) => {
-      const env = {
-        PATH: process.env.PATH,
-        ...this.env,
-      };
-      const opts = { cwd: this.workDir, env };
+  spawn (params, { logger, env } = {}) {
+    env = {
+      PATH: process.env.PATH,
+      ...env,
+    };
+    const opts = { cwd: this.workDir, env, logger };
 
-      debug('Docker stack: %o', params);
+    debug('Docker stack: %o', params);
 
-      const proc = spawn(OPTIONS.bin, ['stack', ...params], opts);
-      proc.stdout.on('data', chunk => {
-        if (io && io[1]) {
-          return io[1](chunk);
-        }
-
-        chunk.toString()
-          .replace(/\r\n/, '\n').split('\n')
-          .map(line => line.trim())
-          .slice(0, -1)
-          .forEach(message => {
-            debugLog('out|', message);
-            logger({ level: 'info', message });
-          });
-      });
-
-      proc.stderr.on('data', chunk => {
-        if (io && io[2]) {
-          return io[2](chunk);
-        }
-
-        chunk.toString()
-          .replace(/\r\n/, '\n').split('\n')
-          .map(line => line.trim())
-          .slice(0, -1)
-          .forEach(message => {
-            debugLog('err|', message);
-            logger({ level: 'warn', message });
-          });
-      });
-
-      proc.on('error', err => {
-        debug('Spawn caught err', err);
-      });
-
-      proc.on('close', (code, signal) => {
-        if (code) {
-          const err = new Error(`Child process spawn error code: ${code} for parameters ${JSON.stringify(params)}`);
-          err.code = code;
-          err.signal = signal;
-          return reject(err);
-        }
-
-        resolve();
-      });
-    });
+    return spawn(OPTIONS.bin, ['stack', ...params], opts);
   }
 }
 

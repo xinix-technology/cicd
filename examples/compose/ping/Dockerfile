@@ -1,3 +1,3 @@
 FROM alpine
 
-CMD [ "ping", "goo.gl" ]
+CMD ["sh", "-c", "ping ${DOMAIN}"]

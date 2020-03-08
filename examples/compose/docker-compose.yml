@@ -2,6 +2,8 @@ version: "3"
 services:
   ping:
     build: ./ping
+    environment:
+      - "DOMAIN=${DOMAIN:-goo.gl}"
   pong:
     image: alpine
-    command: [ "ping", "sagara.id" ]
+    command: [ "ping", "${DOMAIN2:-sagara.id}" ]
