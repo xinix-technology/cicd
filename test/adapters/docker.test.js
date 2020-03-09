@@ -104,7 +104,7 @@ CMD ["ping", "127.0.0.1"]
         assert.strictEqual(json[0].Config.Labels['id.sagara.cicd.stage'], 'bar');
         assert.strictEqual(json[0].Config.Labels['id.sagara.cicd.vhost'], '1');
         assert.strictEqual(json[0].Config.Labels['id.sagara.cicd.vhost.domain'], 'foo');
-        assert.strictEqual(json[0].Config.Labels['id.sagara.cicd.vhost.port'], '80');
+        assert.strictEqual(json[0].Config.Labels['id.sagara.cicd.vhost.port'], '443');
         assert.strictEqual(json[0].Config.Labels['id.sagara.cicd.vhost.upstream_port'], '3000');
       });
     });

@@ -3,26 +3,15 @@ const spawn = require('../lib/spawn');
 const yaml = require('js-yaml');
 const path = require('path');
 const fs = require('fs-extra');
+const { Adapter } = require('../adapter');
 
-const OPTIONS = {
-  bin: 'docker',
-};
-
-class StackAdapter {
-  static get OPTIONS () {
-    return OPTIONS;
-  }
-
+class StackAdapter extends Adapter {
   static test ({ files }) {
     return !!files;
   }
 
   static validate ({ files = ['docker-compose.yml'] }) {
     return { detach: true, files };
-  }
-
-  constructor (stage) {
-    this.stage = stage;
   }
 
   async run ({ env, logger = () => undefined } = {}) {
@@ -80,7 +69,7 @@ class StackAdapter {
 
     debug('Docker stack: %o', params);
 
-    return spawn(OPTIONS.bin, ['stack', ...params], opts);
+    return spawn(Adapter.CONFIG.DOCKER_BIN, ['stack', ...params], opts);
   }
 }
 

@@ -4,7 +4,7 @@ const FILES = [
   'Dockerfile',
 ];
 
-module.exports = function (type = 'docker') {
+module.exports = function dockerResolverFactory (type = 'docker') {
   return async function docker (workDir) {
     const files = await fs.readdir(workDir);
     const configFile = FILES.find(f => files.includes(f));

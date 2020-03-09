@@ -7,7 +7,7 @@ const FILES = [
   'cicd.yaml',
 ];
 
-module.exports = function () {
+module.exports = function cicdResolverFactory () {
   return async function cicd (workDir) {
     const files = await fs.readdir(workDir);
     const configFile = FILES.find(f => files.includes(f));

@@ -1,16 +1,13 @@
 const { Compose } = require('../lib/compose');
+const { Adapter } = require('../adapter');
 
-class ComposeAdapter {
+class ComposeAdapter extends Adapter {
   static test ({ files }) {
     return !!files;
   }
 
   static validate ({ detach = false, files = ['docker-compose.yml'] }) {
     return { detach, files };
-  }
-
-  constructor (stage) {
-    this.stage = stage;
   }
 
   async run ({ env = {}, logger = () => undefined } = {}) {
@@ -38,8 +35,13 @@ class ComposeAdapter {
       if (env.CICD_VHOST && detach) {
         labels['id.sagara.cicd.vhost'] = '1';
         labels['id.sagara.cicd.vhost.domain'] = env.CICD_VHOST_DOMAIN || this.stage.pipeline.name;
-        labels['id.sagara.cicd.vhost.port'] = env.CICD_VHOST_DOMAIN || '80';
-        labels['id.sagara.cicd.vhost.upstream_port'] = env.CICD_VHOST_UPSTREAM_PORT || '3000';
+        labels['id.sagara.cicd.vhost.port'] = env.CICD_VHOST_PORT || Adapter.CONFIG.VHOST_PORT;
+        labels['id.sagara.cicd.vhost.upstream_port'] = env.CICD_VHOST_UPSTREAM_PORT ||
+          Adapter.CONFIG.VHOST_UPSTREAM_PORT;
+
+        if (env.CICD_VHOST_CERT) {
+          labels['id.sagara.cicd.vhost.cert'] = env.CICD_VHOST_CERT;
+        }
       }
 
       logger({ level: 'head', message: 'Running ...' });
