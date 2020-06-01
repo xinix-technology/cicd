@@ -1,0 +1,9 @@
+version: "1"
+stages:
+  build:
+    type: build
+    dockerfile: Dockerfile
+    tag: 'example/ping'
+  deploy:
+    detach: true
+    files: [ docker-compose.yml ]

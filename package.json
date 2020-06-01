@@ -1,6 +1,6 @@
 {
   "name": "@xinix/cicd",
-  "version": "3.0.9",
+  "version": "3.1.0",
   "description": "CI/CD",
   "main": "index.js",
   "scripts": {
@@ -12,32 +12,26 @@
     "url": "https://github.com/xinix-technology/cicd.git"
   },
   "bin": {
-    "cicd": "./bin/cicd"
+    "cicd": "./bin/cicd.js"
   },
   "author": "Ganesha <reekoheek@gmail.com> (http://sagara.id)",
   "license": "MIT",
   "dependencies": {
     "colors": "^1.4.0",
     "debug": "^4.1.1",
-    "dockerode": "^3.1.0",
-    "fs-extra": "^8.1.0",
-    "js-yaml": "^3.13.1",
-    "minimist": "^1.2.0",
+    "fs-extra": "^9.0.0",
+    "js-yaml": "^3.14.0",
+    "minimist": "^1.2.5",
     "split2": "^3.1.1",
     "sprintf-js": "^1.1.2",
     "strip-color": "^0.1.0"
   },
   "devDependencies": {
     "babel-eslint": "^10.1.0",
-    "eslint": "^6.1.0",
-    "eslint-config-standard": "^14.1.0",
-    "eslint-config-xinix": "^1.1.9",
-    "eslint-plugin-import": "^2.18.2",
-    "eslint-plugin-node": "^11.0.0",
-    "eslint-plugin-promise": "^4.2.1",
-    "eslint-plugin-standard": "^4.0.0",
-    "husky": "^4.2.3",
-    "mocha": "^7.1.0"
+    "eslint": "^7.1.0",
+    "eslint-config-xinix": "^1.1.14",
+    "husky": "^4.2.5",
+    "mocha": "^7.2.0"
   },
   "husky": {
     "hooks": {

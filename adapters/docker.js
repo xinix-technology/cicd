@@ -1,5 +1,13 @@
-const { Docker } = require('../lib/docker');
 const { Adapter } = require('../adapter');
+const spawn = require('../lib/spawn');
+const fs = require('fs-extra');
+const path = require('path');
+
+const CONTAINER_SUFFIX = '.0';
+
+const OPTS = {
+  bin: 'docker',
+};
 
 class DockerAdapter extends Adapter {
   static test ({ dockerfile }) {
@@ -10,58 +18,43 @@ class DockerAdapter extends Adapter {
     return { detach, dockerfile };
   }
 
-  async run ({ env = {}, logger = () => undefined } = {}) {
+  async run ({ env = {}, labels = {}, logger = () => undefined } = {}) {
     const { workDir, detach, dockerfile } = this.stage;
 
     const name = this.cannonicalName;
-    const docker = new Docker({ workDir, file: dockerfile, env, name, logger });
 
     try {
       logger({ level: 'head', message: 'Building image ...' });
-      await docker.build();
 
-      const labels = {
-        'id.sagara.cicd.pipeline': this.stage.pipeline.name,
-        'id.sagara.cicd.stage': this.stage.name,
-      };
+      await dockerBuild({ workDir, env, dockerfile, name, logger });
 
-      if (env.CICD_VHOST && detach) {
-        labels['id.sagara.cicd.vhost'] = '1';
-        labels['id.sagara.cicd.vhost.domain'] = env.CICD_VHOST_DOMAIN || this.stage.pipeline.name;
-        labels['id.sagara.cicd.vhost.port'] = env.CICD_VHOST_PORT || Adapter.CONFIG.VHOST_PORT;
-        labels['id.sagara.cicd.vhost.upstream_port'] = env.CICD_VHOST_UPSTREAM_PORT ||
-          Adapter.CONFIG.VHOST_UPSTREAM_PORT;
-
-        if (env.CICD_VHOST_CERT) {
-          labels['id.sagara.cicd.vhost.cert'] = env.CICD_VHOST_CERT;
-        }
+      try {
+        logger({ level: 'head', message: 'Removing running container if exists ...' });
+        await dockerRm({ workDir, logger, name });
+      } catch (err) {
+        // noop
       }
 
       if (detach) {
-        try {
-          logger({ level: 'head', message: 'Removing running container if exists ...' });
-          await docker.rm();
-        } catch (err) {
-          // noop
-        }
-
         logger({ level: 'head', message: 'Running ...' });
-        await docker.create({ labels });
-        await docker.start();
+        await dockerCreate({ workDir, name, logger, labels, env });
+        await dockerStart({ workDir, logger, name });
       } else {
         logger({ level: 'head', message: 'Running ...' });
-        await docker.run({ labels });
+        await dockerRun({ env, labels, name, workDir, logger });
       }
     } finally {
       if (!detach) {
         try {
-          await docker.rm();
+          logger({ level: 'head', message: 'Removing container if exists ...' });
+          await dockerRm({ workDir, logger, name });
         } catch (err) {
           // noop
         }
 
         try {
-          await docker.rmi();
+          logger({ level: 'head', message: 'Removing image if exists ...' });
+          await dockerRmi({ workDir, logger, name });
         } catch (err) {
           // noop
         }
@@ -70,15 +63,27 @@ class DockerAdapter extends Adapter {
   }
 
   async abort ({ env, logger = () => undefined } = {}) {
-    const { workDir, dockerfile } = this.stage;
+    const { workDir } = this.stage;
 
     const name = this.cannonicalName;
-    const docker = new Docker({ workDir, file: dockerfile, env, name, logger });
+    // const docker = new Docker({ workDir, file: dockerfile, env, name, logger });
 
     try {
       logger({ level: 'head', message: 'Aborting ...' });
-      await docker.rm();
-      await docker.rmi();
+
+      try {
+        logger({ level: 'head', message: 'Removing container if exists ...' });
+        await dockerRm({ workDir, logger, name });
+      } catch (err) {
+        // noop
+      }
+
+      try {
+        logger({ level: 'head', message: 'Removing image if exists ...' });
+        await dockerRmi({ workDir, logger, name });
+      } catch (err) {
+        // noop
+      }
     } catch (err) {
       logger({ level: 'error', message: `Abort failed caused by: ${err}` });
     }
@@ -86,3 +91,71 @@ class DockerAdapter extends Adapter {
 }
 
 module.exports = DockerAdapter;
+module.exports.OPTS = OPTS;
+
+async function dockerBuild ({ workDir, dockerfile, name, env, logger }) {
+  const params = ['build', '--file', dockerfile, '--tag', name, '--force-rm'];
+
+  if (workDir) {
+    const content = await fs.readFile(path.join(workDir, dockerfile), 'utf8');
+    const args = content.match(/ARG\s+\w+/g) || [];
+    const usedArgs = (args.map(token => token.split(/\s+/).pop()));
+    for (const key in env) {
+      if (usedArgs.includes(key)) {
+        params.push('--build-arg', `${key}=${env[key]}`);
+      }
+    }
+  }
+
+  params.push('.');
+
+  return spawn(OPTS.bin, params, { cwd: workDir, logger });
+}
+
+function dockerRm ({ workDir, logger, name }) {
+  const params = ['rm', '-f', `${name}${CONTAINER_SUFFIX}`];
+  return spawn(OPTS.bin, params, { cwd: workDir, logger });
+}
+
+function dockerRmi ({ workDir, logger, name }) {
+  const params = ['image', 'rm', '-f', name];
+  return spawn(OPTS.bin, params, { cwd: workDir, logger });
+}
+
+function dockerRun ({ env, labels, name, workDir, logger }) {
+  const params = ['run', '--rm', '--name', `${name}${CONTAINER_SUFFIX}`];
+
+  for (const key in env) {
+    params.push('-e', `${key}=${env[key]}`);
+  }
+
+  for (const key in labels) {
+    params.push('--label', `${key}=${labels[key]}`);
+  }
+
+  params.push(name);
+
+  return spawn(OPTS.bin, params, { cwd: workDir, logger });
+}
+
+function dockerCreate ({ name, workDir, env, labels, logger }) {
+  const params = ['create', '--name', `${name}${CONTAINER_SUFFIX}`];
+
+  for (const key in env) {
+    params.push('-e', `${key}=${env[key]}`);
+  }
+
+  for (const key in labels) {
+    params.push('-l', `${key}=${labels[key]}`);
+  }
+
+  params.push(name);
+
+  return spawn(OPTS.bin, params, { cwd: workDir, logger });
+}
+
+function dockerStart ({ workDir, logger, name }) {
+  const params = ['start', `${name}${CONTAINER_SUFFIX}`];
+
+  return spawn(OPTS.bin, params, { cwd: workDir, logger });
+}

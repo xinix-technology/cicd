@@ -1,5 +1,0 @@
-version: "3"
-services:
-  pong:
-    image: alpine
-    command: [ "ping", "goo.gl" ]

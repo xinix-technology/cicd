@@ -3,9 +3,9 @@ const { Stage } = require('../stage');
 const path = require('path');
 const assert = require('assert');
 
-describe('Pipeline', () => {
-  const workDir = path.join(process.cwd(), 'tmp-test');
+const workDir = path.join(process.cwd(), 'tmp-test');
 
+describe('Pipeline', () => {
   beforeEach(() => {
     Pipeline.reset(true);
     Stage.reset(true);
@@ -14,7 +14,7 @@ describe('Pipeline', () => {
   it('has default resolvers', () => {
     Pipeline.reset();
     Stage.reset();
-    assert.strictEqual(Pipeline.RESOLVERS.length, 3);
+    assert.strictEqual(Pipeline.RESOLVERS.length, 4);
   });
 
   describe('.addResolver()', () => {

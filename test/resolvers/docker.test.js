@@ -7,9 +7,9 @@ const DOCKER_DATA = `
 FROM alpine
 `.trim();
 
-describe('resolvers:docker', () => {
-  const workDir = path.resolve(process.cwd(), 'tmp-test');
+const workDir = path.resolve(process.cwd(), 'tmp-test');
 
+describe('resolvers:docker', () => {
   beforeEach(async () => {
     await fs.ensureDir(workDir);
   });

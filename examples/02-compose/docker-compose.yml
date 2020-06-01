@@ -1,7 +1,7 @@
 version: "3"
 services:
   ping:
-    build: ./ping
+    build: .
     environment:
       - "DOMAIN=${DOMAIN:-goo.gl}"
   pong:

@@ -4,15 +4,12 @@ const { Pipeline, Stage } = require('..');
 const debug = require('debug')('cicd:bin');
 const { sprintf } = require('sprintf-js');
 const yaml = require('js-yaml');
-const { Docker } = require('../lib/docker');
-const { Compose } = require('../lib/compose');
 const colors = require('colors');
 const argv = require('minimist')(process.argv.slice(2), {
   boolean: ['attach', 'help', 'pull', 'version'],
   alias: {
     a: 'attach',
     h: 'help',
-    p: 'pull',
     v: 'version',
   },
 });
@@ -48,7 +45,6 @@ Commands:
 Options:
   -a, --attach     Force attach
   -h, --help       Print help
-  -p, --pull       Force pull base images
   -v, --version    Print version information
     `.trim();
     console.info(data);
@@ -93,7 +89,7 @@ cicd version ${pkgJson.version}
     process.exit();
   },
 
-  async info () {
+  info () {
     console.info('Installed resolvers:');
     Pipeline.RESOLVERS.forEach(resolver => {
       console.info('  -', resolver.name);
@@ -101,14 +97,10 @@ cicd version ${pkgJson.version}
 
     console.info('');
     console.info('Installed adapters:');
-    Stage.ADAPTERS.forEach(adapter => {
-      console.info('  -', adapter.type);
-    });
 
-    console.info('');
-    console.info('Versions:');
-    console.info('  docker        ', await Docker.version());
-    console.info('  docker-compose', await Compose.version());
+    for (const key in Stage.ADAPTERS) {
+      console.info('  -', key);
+    }
   },
 };
 
@@ -150,10 +142,6 @@ function getFn (argv) {
 
 (async () => {
   try {
-    if (argv.pull) {
-      Docker.reset({ pull: true });
-      Compose.reset({ pull: true });
-    }
     const fn = getFn(argv);
 
     if (!fn) {

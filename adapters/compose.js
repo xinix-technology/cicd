@@ -1,5 +1,14 @@
-const { Compose } = require('../lib/compose');
 const { Adapter } = require('../adapter');
+const spawn = require('../lib/spawn');
+const yaml = require('js-yaml');
+const fs = require('fs-extra');
+const path = require('path');
+
+const OVERRIDE_SUFFIX = '.cicd-override-';
+
+const OPTS = {
+  bin: 'docker-compose',
+};
 
 class ComposeAdapter extends Adapter {
   static test ({ files }) {
@@ -10,47 +19,23 @@ class ComposeAdapter extends Adapter {
     return { detach, files };
   }
 
-  async run ({ env = {}, logger = () => undefined } = {}) {
-    const { workDir, detach, files } = this.stage;
+  async run ({ env, labels, logger } = {}) {
+    const { detach } = this.stage;
 
-    const compose = new Compose({ workDir, files, env, logger });
     try {
-      if (Compose.OPTIONS.pull) {
-        try {
-          logger({ level: 'head', message: 'Preparing ...' });
+      await this.prepareOverrideFile({ labels });
 
-          await compose.pull();
-        } catch (err) {
-          logger({ level: 'error', message: 'Compose image pull failed' });
-        }
-      }
+      logger({ level: 'head', message: 'Building images ...' });
 
-      await compose.build();
-
-      const labels = {
-        'id.sagara.cicd.pipeline': this.stage.pipeline.name,
-        'id.sagara.cicd.stage': this.stage.name,
-      };
-
-      if (env.CICD_VHOST && detach) {
-        labels['id.sagara.cicd.vhost'] = '1';
-        labels['id.sagara.cicd.vhost.domain'] = env.CICD_VHOST_DOMAIN || this.stage.pipeline.name;
-        labels['id.sagara.cicd.vhost.port'] = env.CICD_VHOST_PORT || Adapter.CONFIG.VHOST_PORT;
-        labels['id.sagara.cicd.vhost.upstream_port'] = env.CICD_VHOST_UPSTREAM_PORT ||
-          Adapter.CONFIG.VHOST_UPSTREAM_PORT;
-
-        if (env.CICD_VHOST_CERT) {
-          labels['id.sagara.cicd.vhost.cert'] = env.CICD_VHOST_CERT;
-        }
-      }
+      await this.composeBuild({ env, logger });
 
       logger({ level: 'head', message: 'Running ...' });
 
-      await compose.up({ detach, labels });
+      await this.composeUp({ env, logger });
     } finally {
       if (!detach) {
         try {
-          await compose.down();
+          await this.composeDown({ env, logger });
         } catch (err) {
           // noop
         }
@@ -58,17 +43,91 @@ class ComposeAdapter extends Adapter {
     }
   }
 
-  async abort ({ env, logger = () => undefined } = {}) {
-    const { workDir, detach, files } = this.stage;
-
-    const compose = new Compose({ workDir, files, env, logger });
+  async abort ({ env, labels, logger } = {}) {
     try {
+      await this.prepareOverrideFile({ labels });
+
       logger({ level: 'head', message: 'Aborting ...' });
-      await compose.down({ detach });
+      await this.composeDown({ env, logger });
     } catch (err) {
-      logger({ level: 'error', message: `Abort failed caused by: ${err}` });
+      // noop
     }
+  }
+
+  async prepareOverrideFile ({ labels }) {
+    const { workDir, files, name } = this.stage;
+
+    const overrides = {
+      version: '3',
+      services: {},
+    };
+
+    for (const i in files) {
+      const file = files[i];
+      const config = await fs.readFile(path.join(workDir, file));
+      const { services } = await yaml.load(config);
+
+      for (const name in services) {
+        const serviceLabels = [];
+        for (const k in labels) { // eslint-disable-line max-depth
+          serviceLabels.push(`${k}=${labels[k]}`);
+        }
+
+        overrides.services[name] = {
+          labels: serviceLabels,
+        };
+      }
+
+      await fs.writeFile(path.join(workDir, `${OVERRIDE_SUFFIX}${name}.yml`), yaml.dump(overrides));
+    }
+  }
+
+  composeBuild ({ env, logger }) {
+    const { workDir, files, name } = this.stage;
+
+    const params = ['--no-ansi'];
+    for (const i in files) {
+      params.push('-f', files[i]);
+    }
+    params.push('-f', `${OVERRIDE_SUFFIX}${name}.yml`);
+
+    params.push('build', '--parallel');
+    return spawn(OPTS.bin, params, { cwd: workDir, env, logger });
+  }
+
+  composeUp ({ env, logger }) {
+    const { workDir, files, detach, name } = this.stage;
+
+    const params = ['--no-ansi'];
+    for (const i in files) {
+      params.push('-f', files[i]);
+    }
+    params.push('-f', `${OVERRIDE_SUFFIX}${name}.yml`);
+
+    params.push('up', '--no-color');
+
+    if (detach) {
+      params.push('-d');
+    } else {
+      params.push('--abort-on-container-exit');
+    }
+
+    return spawn(OPTS.bin, params, { cwd: workDir, env, logger });
+  }
+
+  composeDown ({ env, logger }) {
+    const { workDir, files, name } = this.stage;
+
+    const params = ['--no-ansi'];
+    for (const i in files) {
+      params.push('-f', files[i]);
+    }
+    params.push('-f', `${OVERRIDE_SUFFIX}${name}.yml`);
+
+    params.push('down', '--rmi', 'local');
+    return spawn(OPTS.bin, params, { cwd: workDir, env, logger });
   }
 }
 
 module.exports = ComposeAdapter;
+module.exports.OPTS = ComposeAdapter.OPTS;

@@ -1,4 +1,4 @@
-let ADAPTERS = {};
+const ADAPTERS = {};
 
 class Stage {
   static get ADAPTERS () {
@@ -6,12 +6,15 @@ class Stage {
   }
 
   static reset (empty = false) {
-    ADAPTERS = {};
+    for (const key in ADAPTERS) {
+      delete ADAPTERS[key];
+    }
 
     if (!empty) {
       Stage.putAdapter('stack', require('./adapters/stack'));
       Stage.putAdapter('compose', require('./adapters/compose'));
       Stage.putAdapter('docker', require('./adapters/docker'));
+      Stage.putAdapter('build', require('./adapters/build'));
     }
   }
 
@@ -88,7 +91,7 @@ class Stage {
     return config;
   }
 
-  async run ({ env, attach = false, logger = () => undefined } = {}) {
+  async run ({ env, labels, attach = false, logger = () => undefined } = {}) {
     const stageLogger = log => {
       log.pipeline = this.pipeline.name;
       log.stage = this.name;
@@ -99,16 +102,29 @@ class Stage {
       this.detach = false;
     }
 
-    await this.adapter.run({ env, logger: stageLogger });
+    labels = {
+      ...labels,
+      'id.sagara.cicd.pipeline': this.pipeline.name,
+      'id.sagara.cicd.stage': this.name,
+    };
+
+    await this.adapter.run({ env, labels, logger: stageLogger });
   }
 
-  async abort ({ env, logger = () => undefined } = {}) {
+  async abort ({ env, labels, logger = () => undefined } = {}) {
     const stageLogger = log => {
       log.pipeline = this.pipeline.name;
       log.stage = this.name;
       logger(log);
     };
-    await this.adapter.abort({ env, logger: stageLogger });
+
+    labels = {
+      ...labels,
+      'id.sagara.cicd.pipeline': this.pipeline.name,
+      'id.sagara.cicd.stage': this.name,
+    };
+
+    await this.adapter.abort({ env, labels, logger: stageLogger });
   }
 }
 

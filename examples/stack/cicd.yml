@@ -1,7 +1,0 @@
-version: "1"
-stages:
-  main:
-    type: 'stack'
-    files:
-      - ping.yml
-      - pong.yml

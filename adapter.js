@@ -1,20 +1,4 @@
-let CONFIG = {};
-
 class Adapter {
-  static reset (config) {
-    CONFIG = {
-      VHOST_PORT: '443',
-      VHOST_UPSTREAM_PORT: '3000',
-      DOCKER_BIN: 'docker',
-      COMPOSE_BIN: 'docker-compose',
-      ...config,
-    };
-  }
-
-  static get CONFIG () {
-    return CONFIG;
-  }
-
   static test () {
     throw new Error('Adapter must implement .test()');
   }
@@ -43,7 +27,5 @@ class Adapter {
     throw new Error('Adapter must implement #abort()');
   }
 }
-
-Adapter.reset();
 
 module.exports = { Adapter };

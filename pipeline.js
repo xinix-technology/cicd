@@ -15,6 +15,7 @@ class Pipeline {
     if (!empty) {
       Pipeline.addResolver(require('./resolvers/cicd')());
       Pipeline.addResolver(require('./resolvers/compose')());
+      Pipeline.addResolver(require('./resolvers/stack')());
       Pipeline.addResolver(require('./resolvers/docker')());
     }
   }
@@ -90,11 +91,11 @@ class Pipeline {
     };
   }
 
-  async run ({ env, attach = false, logger = () => undefined } = {}) {
+  async run ({ env, labels, attach = false, logger = () => undefined } = {}) {
     logger({ pipeline: this.name, level: 'head', message: `Running ${this.name} ...` });
 
     for (const name in this.stages) {
-      await this.stages[name].run({ env, attach, logger });
+      await this.stages[name].run({ env, labels, attach, logger });
     }
   }
 

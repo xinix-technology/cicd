@@ -10,9 +10,9 @@ stages:
   bar:
 `.trim();
 
-describe('resolvers:cicd', () => {
-  const workDir = path.resolve(process.cwd(), 'tmp-test');
+const workDir = path.resolve(process.cwd(), 'tmp-test');
 
+describe('resolvers:cicd', () => {
   beforeEach(async () => {
     await fs.ensureDir(workDir);
   });

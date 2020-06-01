@@ -4,14 +4,6 @@ Xinix CI/CD Library
 
 CICD or Continuous Integration Continuous Deployment is an approach to do integration and deployment of application in scripting and automated way.
 
-## Environment
-
-- CICD_VHOST=0
-- CICD_VHOST_DOMAIN=${pipeline.name}
-- CICD_VHOST_PORT=443
-- CICD_VHOST_CERT=/etc/nginx/certs/server
-- CICD_VHOST_UPSTREAM_PORT=3000
-
 ## Adapter
 
 Adapter define how stage run.

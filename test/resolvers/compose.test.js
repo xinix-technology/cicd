@@ -11,9 +11,9 @@ services:
     command: ['ping', 'goo.gl']
 `.trim();
 
-describe('resolvers:compose', () => {
-  const workDir = path.resolve(process.cwd(), 'tmp-test');
+const workDir = path.resolve(process.cwd(), 'tmp-test');
 
+describe('resolvers:compose', () => {
   beforeEach(async () => {
     await fs.ensureDir(workDir);
   });

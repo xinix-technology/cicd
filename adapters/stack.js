@@ -1,76 +1,81 @@
-const debug = require('debug')('cicd:adapters:stack');
 const spawn = require('../lib/spawn');
 const yaml = require('js-yaml');
 const path = require('path');
 const fs = require('fs-extra');
 const { Adapter } = require('../adapter');
 
+const OVERRIDE_SUFFIX = '.cicd-override-';
+
+const OPTS = {
+  bin: 'docker',
+};
+
 class StackAdapter extends Adapter {
   static test ({ files }) {
     return !!files;
   }
 
-  static validate ({ files = ['docker-compose.yml'] }) {
+  static validate ({ files = ['docker-stack.yml'] }) {
     return { detach: true, files };
   }
 
-  async run ({ env, logger = () => undefined } = {}) {
+  async run ({ env, labels, logger }) {
     const { files, workDir } = this.stage;
     const name = `${this.stage.pipeline.name}`;
-    const labels = {
-      'id.sagara.cicd.pipeline': name,
-      'id.sagara.cicd.stage': this.stage.name,
-    };
-    // const name = `${this.stage.pipeline.name}__${this.stage.name}`;
+
+    await this.prepareOverrideFile({ labels });
 
     logger({ level: 'head', message: 'Deploying ...' });
 
-    const params = ['deploy'];
+    const params = ['stack', 'deploy'];
 
     for (const i in files) {
-      const file = files[i];
-      const content = await fs.readFile(path.join(workDir, file));
-      const json = await yaml.load(content);
-      for (const k in json.services) {
-        const service = json.services[k];
-        const serviceLabels = service.labels = service.labels || {};
-        if (Array.isArray(serviceLabels)) {
-          for (const k in labels) { // eslint-disable-line max-depth
-            serviceLabels.push(`${k}=${labels[k]}`);
-          }
-        } else {
-          Object.assign(serviceLabels, labels);
-        }
-      }
-      const config = await yaml.dump(json);
-      const cFile = `.${file}`;
-      await fs.writeFile(path.join(workDir, cFile), config);
-      params.push('-c', cFile);
+      params.push('-c', files[i]);
     }
+    params.push('-c', `${OVERRIDE_SUFFIX}${this.stage.name}.yml`);
 
     params.push(name);
-    await this.spawn(params, { logger, env, workDir });
+    await spawn(OPTS.bin, params, { logger, env, cwd: workDir });
   }
 
-  async abort ({ env, logger = () => undefined } = {}) {
+  async abort ({ env, logger }) {
     const { workDir } = this.stage;
     const name = `${this.stage.pipeline.name}`;
 
     logger({ level: 'head', message: 'Removing ...' });
-    await this.spawn(['rm', name], { logger, env, workDir });
+
+    const params = ['stack', 'rm', name];
+    await spawn(OPTS.bin, params, { logger, env, cwd: workDir });
   }
 
-  spawn (params, { logger, env } = {}) {
-    env = {
-      PATH: process.env.PATH,
-      ...env,
+  async prepareOverrideFile ({ labels }) {
+    const { workDir, files, name } = this.stage;
+
+    const overrides = {
+      version: '3',
+      services: {},
     };
-    const opts = { cwd: this.workDir, env, logger };
 
-    debug('Docker stack: %o', params);
+    for (const i in files) {
+      const file = files[i];
+      const config = await fs.readFile(path.join(workDir, file));
+      const { services } = await yaml.load(config);
 
-    return spawn(Adapter.CONFIG.DOCKER_BIN, ['stack', ...params], opts);
+      for (const name in services) {
+        const serviceLabels = [];
+        for (const k in labels) { // eslint-disable-line max-depth
+          serviceLabels.push(`${k}=${labels[k]}`);
+        }
+
+        overrides.services[name] = {
+          labels: serviceLabels,
+        };
+      }
+
+      await fs.writeFile(path.join(workDir, `${OVERRIDE_SUFFIX}${name}.yml`), yaml.dump(overrides));
+    }
   }
 }
 
 module.exports = StackAdapter;
+module.exports.OPTS = OPTS;
