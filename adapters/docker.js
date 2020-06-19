@@ -130,7 +130,7 @@ function dockerRun ({ env, labels, name, workDir, logger, networks }) {
   }
 
   for (const key in networks) {
-    params.push('--network', `${env[key]}`);
+    params.push('--network', `${networks[key]}`);
   }
 
   for (const key in labels) {
