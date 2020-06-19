@@ -150,7 +150,7 @@ function dockerCreate ({ name, workDir, env, labels, logger, networks }) {
   }
 
   for (const key in networks) {
-    params.push('--network', `${env[key]}`);
+    params.push('--network', `${networks[key]}`);
   }
 
   for (const key in labels) {
