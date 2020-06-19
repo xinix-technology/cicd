@@ -19,11 +19,11 @@ class StackAdapter extends Adapter {
     return { detach: true, files };
   }
 
-  async run ({ env, labels, logger }) {
+  async run ({ env, labels, networks, logger }) {
     const { files, workDir } = this.stage;
     const name = `${this.stage.pipeline.name}`;
 
-    await this.prepareOverrideFile({ labels });
+    await this.prepareOverrideFile({ labels, networks });
 
     logger({ level: 'head', message: 'Deploying ...' });
 
@@ -48,8 +48,11 @@ class StackAdapter extends Adapter {
     await spawn(OPTS.bin, params, { logger, env, cwd: workDir });
   }
 
-  async prepareOverrideFile ({ labels }) {
+  async prepareOverrideFile ({ labels, networks }) {
     const { workDir, files, name } = this.stage;
+
+    const overrideFile = path.join(workDir, `${OVERRIDE_SUFFIX}${name}.yml`);
+    await fs.remove(overrideFile);
 
     const overrides = {
       version: '3',
@@ -63,17 +66,28 @@ class StackAdapter extends Adapter {
 
       for (const name in services) {
         const serviceLabels = [];
+        const serviceNetworks = [];
         for (const k in labels) { // eslint-disable-line max-depth
           serviceLabels.push(`${k}=${labels[k]}`);
         }
 
+        for (const k in networks) {
+          const network = networks[k];
+          if (!serviceNetworks.includes(network)) { // eslint-disable-line max-depth
+            serviceNetworks.push(network);
+            overrides.networks = overrides.networks || {};
+            overrides.networks[network] = { external: true };
+          }
+        }
+
         overrides.services[name] = {
           labels: serviceLabels,
+          networks: serviceNetworks,
         };
       }
-
-      await fs.writeFile(path.join(workDir, `${OVERRIDE_SUFFIX}${name}.yml`), yaml.dump(overrides));
     }
+
+    await fs.writeFile(overrideFile, yaml.dump(overrides));
   }
 }
 

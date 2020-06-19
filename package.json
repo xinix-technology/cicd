@@ -1,11 +1,11 @@
 {
   "name": "@xinix/cicd",
-  "version": "3.1.0",
+  "version": "3.1.1",
   "description": "CI/CD",
   "main": "index.js",
   "scripts": {
     "lint": "eslint .",
-    "test": "mocha test/** --watch-ignore tmp_test"
+    "test": "npx mocha test/** --watch-ignore tmp_test"
   },
   "repository": {
     "type": "git",
@@ -19,7 +19,7 @@
   "dependencies": {
     "colors": "^1.4.0",
     "debug": "^4.1.1",
-    "fs-extra": "^9.0.0",
+    "fs-extra": "^9.0.1",
     "js-yaml": "^3.14.0",
     "minimist": "^1.2.5",
     "split2": "^3.1.1",
@@ -27,11 +27,9 @@
     "strip-color": "^0.1.0"
   },
   "devDependencies": {
-    "babel-eslint": "^10.1.0",
-    "eslint": "^7.1.0",
+    "eslint": "^7.2.0",
     "eslint-config-xinix": "^1.1.14",
-    "husky": "^4.2.5",
-    "mocha": "^7.2.0"
+    "husky": "^4.2.5"
   },
   "husky": {
     "hooks": {

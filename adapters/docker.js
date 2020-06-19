@@ -18,7 +18,7 @@ class DockerAdapter extends Adapter {
     return { detach, dockerfile };
   }
 
-  async run ({ env = {}, labels = {}, logger = () => undefined } = {}) {
+  async run ({ env = {}, labels = {}, networks = [], logger = () => undefined } = {}) {
     const { workDir, detach, dockerfile } = this.stage;
 
     const name = this.cannonicalName;
@@ -37,11 +37,11 @@ class DockerAdapter extends Adapter {
 
       if (detach) {
         logger({ level: 'head', message: 'Running ...' });
-        await dockerCreate({ workDir, name, logger, labels, env });
+        await dockerCreate({ workDir, name, logger, networks, labels, env });
         await dockerStart({ workDir, logger, name });
       } else {
         logger({ level: 'head', message: 'Running ...' });
-        await dockerRun({ env, labels, name, workDir, logger });
+        await dockerRun({ env, labels, name, workDir, logger, networks });
       }
     } finally {
       if (!detach) {
@@ -122,11 +122,15 @@ function dockerRmi ({ workDir, logger, name }) {
   return spawn(OPTS.bin, params, { cwd: workDir, logger });
 }
 
-function dockerRun ({ env, labels, name, workDir, logger }) {
+function dockerRun ({ env, labels, name, workDir, logger, networks }) {
   const params = ['run', '--rm', '--name', `${name}${CONTAINER_SUFFIX}`];
 
   for (const key in env) {
     params.push('-e', `${key}=${env[key]}`);
+  }
+
+  for (const key in networks) {
+    params.push('--network', `${env[key]}`);
   }
 
   for (const key in labels) {
@@ -138,11 +142,15 @@ function dockerRun ({ env, labels, name, workDir, logger }) {
   return spawn(OPTS.bin, params, { cwd: workDir, logger });
 }
 
-function dockerCreate ({ name, workDir, env, labels, logger }) {
+function dockerCreate ({ name, workDir, env, labels, logger, networks }) {
   const params = ['create', '--name', `${name}${CONTAINER_SUFFIX}`];
 
   for (const key in env) {
     params.push('-e', `${key}=${env[key]}`);
+  }
+
+  for (const key in networks) {
+    params.push('--network', `${env[key]}`);
   }
 
   for (const key in labels) {

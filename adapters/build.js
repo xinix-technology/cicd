@@ -19,7 +19,7 @@ class BuildAdapter extends Adapter {
     return { detach: false, dockerfile, tag };
   }
 
-  async run ({ env = {}, labels = {}, logger = () => undefined } = {}) {
+  async run ({ env = {}, logger = () => undefined } = {}) {
     const { tag } = this.stage;
 
     logger({ level: 'head', message: `Building image (${tag}) ...` });
